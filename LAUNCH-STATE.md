@@ -1,6 +1,16 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布 — ボード集中・企画デモ版 / version 3（2026-09-13）
+## 現在の配布 — 微調整ズーム版 / version 4（2026-09-13）
+
+- 公開URLと公開範囲publicを維持。最終状態 `succeeded`（2026-09-13 14:52:43 UTC）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
+- 配布コード: `4b8892a962cd76fcd295af4712e896bf549d65c6`。Sites/GitHub両方へpush済み。同じ資産11ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_b4528a6cfd64819198865d9d9ccde125`。
+- Deployment: `appgdep_6aa6b8b13028819188ac45e59d708728`。
+- PCホイールを上下移動からカーソル中心ズームへ。ピンチの感度を穏やかにして小数の入力量を保持。＋／−は1.05倍と逆数、倍率表示は小数1桁。
+- 57テスト成功。公開JSがHTTP200で新ホイール処理・ピンチ感度を含むことを確認。変更後の視覚・実トラックパッドの手触りは未確認。保存データ・共有デモ・提出URL・サムネイルは維持。
+
+## 過去の配布 — ボード集中・企画デモ版 / version 3（2026-09-13）
 
 - 最終状態 `succeeded`（2026-09-13 14:46:20 UTC）。審査員や他ユーザーに体験してもらう本人の依頼に沿って、14:46:36 UTCに公開範囲をpublicへ変更。
 - アプリ: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
