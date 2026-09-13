@@ -83,9 +83,13 @@ dist/board-model.mjs 座標・接続線・分類枠の検証と操作
 dist/app.mjs      画面の操作・履歴・保存のつなぎ込み
 dist/model.mjs    ツリーと提案のルール、JSON検証
 dist/storage.mjs  保存・バックアップ・競合検知
+dist/history.mjs  元に戻す／やり直す履歴の順序と上限
 tests/           Node標準テスト（外部依存なし）
 ```
 
 AI利用範囲は [AI-USE.md](AI-USE.md)、設計は [DESIGN.md](DESIGN.md)、確認状況・残件は [PLAN.md](PLAN.md)、配布状況は [LAUNCH-STATE.md](LAUNCH-STATE.md) を参照してください。
+
+コードを変更する場合の入口と確認手順は [MAINTAINING.md](MAINTAINING.md) に記載しています。
+2026年9月14日の保守用コメント追加とソース整形は、実際の更新日時を残しています。
 
 不具合・感想は [GitHub Issues](https://github.com/toki0001/shiko-no-me/issues) へ。公開投稿になるため、個人情報や非公開ノートの本文を含めないでください。応募の規約同意・フォーム送信はコード公開とは別で、本人の確認が必要です。
