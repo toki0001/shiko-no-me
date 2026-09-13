@@ -3,6 +3,7 @@ import { KEY, load, save } from './storage.mjs';
 import { initializeBoard, freePosition, moveCards, createFrame, moveFrame, resizeFrame, syncFrameMembership, setLineColor, PALETTE } from './board-model.mjs';
 import { BoardView } from './board-view.mjs';
 import { createIdeaStory } from './story.mjs';
+import { UndoHistory } from './history.mjs';
 
 const $ = id => document.getElementById(id);
 let local;
@@ -18,8 +19,8 @@ let saveQueued = false, saveTimer, saveAgain = false, sidebarReturn, editorRetur
 let selectedIds = new Set(), selectedFrameId = null, multipleMode = false, viewMode = 'board', draft = null;
 let composingTarget = null;
 const compact = matchMedia('(max-width: 940px)');
-let entryParentId, entryMode, aiParentId, confirmCallback, toastTimer, editGroup = '', editTime = 0;
-const collapsed = new Set(), history = [];
+let entryParentId, entryMode, aiParentId, confirmCallback, toastTimer, editGroup = '', editTime = 0, editStarted = 0;
+const collapsed = new Set(), history = new UndoHistory(40);
 const book = () => workspace.notebooks.find(item => item.id === workspace.activeId);
 selectedId = book().rootId; focusId = book().rootId;
 selectedIds.add(selectedId);
@@ -31,6 +32,7 @@ const boardView = new BoardView($('board'), {
   ready: editorReady, multiple: () => multipleMode,
   frame: selectFrame, clearFrame: () => { selectedFrameId = null; renderBoardTools(); },
   gesture: commitGesture, edge: id => { if (selectBoardNode(id)) { openEditor(); $('line-color').focus(); } },
+  viewChanged: recordViewChange,
   edit: id => { if (selectBoardNode(id)) openEditor(); },
   zoom: scale => { $('zoom-value').textContent = `${Math.round(scale * 1000) / 10}%`; },
   escape: () => { cancelDraft(); multipleMode = false; selectedIds = new Set([selectedId]); selectedFrameId = null; renderTree(); $('view-toggle').focus(); },
@@ -80,14 +82,15 @@ function editorReady() {
 function transaction(change, { group = '', inspector = true } = {}) {
   // 変更前の全体を保存し、検証に失敗したら戻す。取り消しと保存が別の内容にならないよう、入口を一つにする。
   if (readOnly) { toast('共有ノートです。編集するときは「自分のノートにコピー」を押してください。'); return { ok: false, error: new Error('閲覧専用です。') }; }
-  const previous = clone(workspace), previousSelected = selectedId, previousFocus = focusId, previousIds = new Set(selectedIds), previousFrame = selectedFrameId;
+  const previous = clone(workspace), previousSelected = selectedId, previousFocus = focusId, previousIds = new Set(selectedIds), previousFrame = selectedFrameId, previousView = { ...boardView.view };
   try {
     const result = change(); validateWorkspace(workspace);
     book().updatedAt = new Date().toISOString();
     const now = Date.now();
-    if (!group || group !== editGroup || now - editTime > 1500) {
-      history.push({ workspace: previous, selectedId: previousSelected, focusId: previousFocus }); if (history.length > 40) history.shift();
+    if (!group || group !== editGroup || now - editTime > 600 || now - editStarted > 1000) {
+      history.push({ kind: 'content', workspace: previous, selectedId: previousSelected, focusId: previousFocus, view: previousView }); editStarted = now;
     }
+    history.dropRedo();
     editGroup = group; editTime = now; persist(); render(inspector); return { ok: true, result };
   } catch (error) { workspace = previous; selectedId = previousSelected; focusId = previousFocus; selectedIds = previousIds; selectedFrameId = previousFrame; render(inspector); toast(error.message); return { ok: false, error }; }
 }
@@ -97,8 +100,7 @@ function render(inspector = true) {
   selectedIds = new Set([...selectedIds].filter(id => getNode(book(), id))); if (!selectedIds.size) selectedIds.add(selectedId);
   if (!book().frames?.some(frame => frame.id === selectedFrameId)) selectedFrameId = null;
   renderNotebooks(); renderTree(); if (inspector) renderEditor(); renderProposals();
-  $('undo').disabled = history.length === 0;
-  $('editor-undo').disabled = history.length === 0;
+  renderHistory();
   $('pending-count').hidden = pending().length === 0; $('pending-count').textContent = pending().length;
 }
 function renderNotebooks() {
@@ -246,15 +248,14 @@ function editNode(event) {
   if (activeNode()[field] === value) return;
   // Validate only the edited field on the keystroke path. Snapshot once per
   // editing burst; full validation/serialization happens on the debounced save.
-  const group = `${workspace.activeId}:${selectedId}:edit`, now = Date.now();
-  const snapshot = group !== editGroup || now - editTime > 1500 ? { workspace: clone(workspace), selectedId, focusId } : null;
+  const group = `${workspace.activeId}:${selectedId}:${field}`, now = Date.now();
+  const snapshot = group !== editGroup || now - editTime > 600 || now - editStarted > 1000 ? captureHistory('content') : null;
   try {
     updateNode(book(), selectedId, { [field]: value }); book().updatedAt = new Date().toISOString();
-    if (snapshot) { history.push(snapshot); if (history.length > 40) history.shift(); }
+    if (snapshot) { history.push(snapshot); editStarted = now; } history.dropRedo();
     editGroup = group; editTime = now; persist();
     if (field === 'text' || selectedId === book().rootId) { renderNotebooks(); renderTree(); }
-    $('undo').disabled = false;
-    $('editor-undo').disabled = false;
+    renderHistory();
     $('node-source').textContent = activeNode().source === 'human' ? '自分の考え' : 'AIの提案を自分で編集';
   } catch (error) { toast(error.message); }
 }
@@ -283,14 +284,44 @@ $('delete-node').addEventListener('click', () => {
     }); toast('削除しました。「元に戻す」で取り消せます');
   });
 });
-$('undo').addEventListener('click', () => {
+function renderHistory() {
+  $('undo').disabled = !history.length && !draft && !invalidTitle;
+  $('editor-undo').disabled = $('undo').disabled;
+  $('redo').disabled = !history.canRedo || Boolean(draft) || invalidTitle;
+  $('editor-redo').disabled = $('redo').disabled;
+}
+function captureHistory(kind) {
+  return { kind, ...(kind === 'content' ? { workspace: clone(workspace) } : { activeId: workspace.activeId }), selectedId, focusId, view: { ...boardView.view } };
+}
+function recordViewChange(before, action = '') {
+  if (!book() || before.x === boardView.view.x && before.y === boardView.view.y && before.scale === boardView.view.scale) return;
+  const group = action ? `view:${workspace.activeId}:${action}` : '', now = Date.now();
+  if (!group || editGroup !== group || now - editTime > 600 || now - editStarted > 1000) {
+    history.push({ ...captureHistory('view'), view: { ...before } }); editStarted = now;
+  }
+  history.dropRedo(); editGroup = group; editTime = now; renderHistory();
+}
+function navigateHistory(direction) {
   if (!compositionReady()) return;
-  if (draft) { cancelDraft(); return; }
-  if (invalidTitle) { renderEditor(); $('undo').disabled = history.length === 0; $('editor-undo').disabled = history.length === 0; $('save-status').textContent = '空欄の編集を取り消しました'; return; }
-  const previous = history.pop(); if (!previous) return;
-  workspace = previous.workspace; selectedId = previous.selectedId; selectedIds = new Set([selectedId]); selectedFrameId = null; focusId = previous.focusId; editGroup = ''; ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); persist(); render(); toast('一つ前の状態に戻しました');
-});
+  if (draft) { if (direction === 'undo') cancelDraft(); return; }
+  if (invalidTitle) { if (direction === 'undo') { renderEditor(); renderHistory(); $('save-status').textContent = '空欄の編集を取り消しました'; } return; }
+  const target = direction === 'undo' ? history.peekUndo() : history.peekRedo(); if (!target) return;
+  if (readOnly && target.kind !== 'view') return;
+  boardView.cancelGesture();
+  const current = captureHistory(target.kind), previous = history[direction](current), oldBook = workspace.activeId;
+  if (previous.kind === 'content') workspace = previous.workspace;
+  else if (workspace.notebooks.some(item => item.id === previous.activeId)) workspace.activeId = previous.activeId;
+  selectedId = previous.selectedId; selectedIds = new Set([selectedId]); selectedFrameId = null; focusId = previous.focusId; editGroup = '';
+  if (!getNode(book(), selectedId)) selectedId = book().rootId;
+  ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id));
+  if (previous.kind === 'content' || oldBook !== workspace.activeId) persist();
+  render(); boardView.view = { ...previous.view }; boardView.transform();
+  toast(direction === 'undo' ? '一つ前の状態に戻しました' : '取り消した操作をやり直しました');
+}
+$('undo').addEventListener('click', () => navigateHistory('undo'));
+$('redo').addEventListener('click', () => navigateHistory('redo'));
 $('editor-undo').addEventListener('click', () => $('undo').click());
+$('editor-redo').addEventListener('click', () => $('redo').click());
 $('focus-branch').addEventListener('click', () => { if (!editorReady()) return; focusId = selectedId; collapsed.delete(selectedId); closeEditor(); renderTree(); });
 $('collapse-all').addEventListener('click', () => { if (!editorReady()) return; if (collapsed.size) collapsed.clear(); else { book().nodes.forEach(node => { if (children(book(), node.id).length) collapsed.add(node.id); }); selectedId = focusId; selectedIds = new Set([selectedId]); selectedFrameId = null; } renderTree(); renderEditor(); });
 for (const id of ['add-child', 'mobile-add']) $(id).addEventListener('click', () => viewMode === 'board' ? beginDraft(selectedId, 'right') : openEntry('child'));
@@ -314,6 +345,10 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 document.addEventListener('keydown', event => {
   if (event.isComposing || composingTarget) return;
   if (document.querySelector('dialog[open]')) return;
+  if ((event.ctrlKey || event.metaKey) && !event.target.closest('input,textarea,[contenteditable="true"]')) {
+    const key = event.key.toLowerCase();
+    if (key === 'z' || key === 'y') { event.preventDefault(); navigateHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo'); return; }
+  }
   if (event.key === 'Escape') { closeSidebar(); if (editorReady()) closeEditor(); }
   if ($('sidebar').classList.contains('is-open')) trapFocus(event, $('sidebar'));
   else if (compact.matches && $('inspector').classList.contains('is-open')) trapFocus(event, $('inspector'));
@@ -464,7 +499,7 @@ function cancelDraft() {
   if (!draft) return;
   const parentId = draft.parentId; draft = null; boardView.removeDraft(); renderTree();
   boardView.cardElements.get(parentId)?.querySelector('.card-body').focus({ preventScroll: true });
-  $('undo').disabled = !history.length;
+  renderHistory();
   $('save-status').textContent = blocked || saveError ? '未保存・書き出しを' : saveTimer || saveQueued ? '保存待ち…' : 'このブラウザに保存済み';
 }
 function commitGesture(gesture) {
@@ -556,7 +591,7 @@ $('copy-shared').addEventListener('click', async () => {
   try {
     const original = clone(book()), own = clone(loaded.workspace);
     const copies = importNotebooks(own, JSON.stringify({ version: 1, activeId: original.id, notebooks: [original] }));
-    workspace = own; readOnly = false; viewMode = 'board'; history.length = 0; selectedId = copies[0].rootId; selectedIds = new Set([selectedId]); focusId = selectedId;
+    workspace = own; readOnly = false; viewMode = 'board'; history.clear(); selectedId = copies[0].rootId; selectedIds = new Set([selectedId]); focusId = selectedId;
     document.body.classList.remove('shared-view'); $('shared-banner').hidden = true; closeEditor(false); closeSidebar(false);
     window.history.replaceState(null, '', location.pathname); render(); boardView.reveal(selectedId, true);
     await flushSave();

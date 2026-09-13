@@ -5,6 +5,8 @@
 .topbar { position: relative; flex: 0 0 auto; flex-wrap: nowrap; min-height: 56px; padding: calc(6px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left)); gap: 10px; background: var(--paper); z-index: 12; }
 .topbar h1 { flex: 1; min-width: 0; margin: 0; font-size: 1rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
 .top-actions { flex: 0 0 auto; gap: 6px; margin: 0; }
+.history-controls { display: flex; flex: 0 0 auto; gap: 2px; }
+.topbar .history-controls .button { width: 36px; min-width: 36px; min-height: 44px; padding: 0; border-color: transparent; background: transparent; font-size: 1.15rem; }
 .topbar .button { padding-inline: 12px; font-size: .875rem; }
 .topbar .save-status { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: calc(74px + env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); font-size: .8125rem; background: var(--paper); padding: 2px 8px; border-radius: 6px; pointer-events: none; }
 .workspace { flex: 1; min-height: 0; }
@@ -34,7 +36,7 @@
 .story-navigation output { font-size: .875rem; white-space: nowrap; }
 .shared-view .branch-port, .shared-view .frame-resize, .shared-view .frame-edit,
 .shared-view .tree-actions, .shared-view .mobile-actions, .shared-view #open-ai,
-.shared-view #undo, .shared-view #new-notebook, .shared-view #import-file,
+.shared-view #new-notebook, .shared-view #import-file,
 .shared-view #share-notebook,
 .shared-view .line-color-field, .shared-view .branch-options, .shared-view #board-actions { display: none !important; }
 .shared-view .topbar .save-status { display: none; }

@@ -97,9 +97,11 @@ export class BoardView {
     this.view = { scale, x: (this.container.clientWidth - rect.width * scale) / 2 - rect.x * scale, y: (this.container.clientHeight - rect.height * scale) / 2 - rect.y * scale }; this.transform();
   }
   zoomBy(factor, clientX, clientY) {
+    const previous = { ...this.view };
     const rect = this.container.getBoundingClientRect(), x = (clientX ?? rect.left + rect.width / 2) - rect.left, y = (clientY ?? rect.top + rect.height / 2) - rect.top;
     const before = this.view.scale, scale = Math.max(.25, Math.min(1.75, before * factor));
     this.view.x = x - (x - this.view.x) / before * scale; this.view.y = y - (y - this.view.y) / before * scale; this.view.scale = scale; this.transform();
+    this.callbacks?.viewChanged?.(previous, 'zoom');
   }
   wheel(event) {
     if (event.target.closest('textarea,input')) return;
@@ -127,7 +129,7 @@ export class BoardView {
       this.cancelPreview(); this.lastTap = null;
       const [a, b] = [...this.pointers.values()], rect = this.container.getBoundingClientRect();
       const mid = { x: (a.x + b.x) / 2 - rect.left, y: (a.y + b.y) / 2 - rect.top };
-      this.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), scale: this.view.scale, world: { x: (mid.x - this.view.x) / this.view.scale, y: (mid.y - this.view.y) / this.view.scale } }; return;
+      this.pinch = { view: { ...this.view }, distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), scale: this.view.scale, world: { x: (mid.x - this.view.x) / this.view.scale, y: (mid.y - this.view.y) / this.view.scale } }; return;
     }
     if (this.pinch || this.pointers.size !== 1) return;
     const card = event.target.closest('.thought-card'), frame = event.target.closest('.classification-frame');
@@ -166,13 +168,13 @@ export class BoardView {
   pointerUp(event) {
     if (!this.pointers.has(event.pointerId)) return;
     this.pointers.delete(event.pointerId);
-    if (this.pinch) { if (!this.pointers.size) this.pinch = null; return; }
+    if (this.pinch) { if (!this.pointers.size) { const before = this.pinch.view; this.pinch = null; if (before) this.callbacks.viewChanged?.(before); } return; }
     const g = this.gesture; this.gesture = null;
     if (this.dragFrame) cancelAnimationFrame(this.dragFrame); this.dragFrame = null;
     if (!g || g.pointerId !== event.pointerId) return;
     if (g.moved) {
       this.lastTap = null;
-      if (this.callbacks.readOnly?.()) return;
+      if (g.type === 'pan' || this.callbacks.readOnly?.()) { this.callbacks.viewChanged?.(g.view); return; }
       if (g.type === 'resize') {
         const frame = this.book.frames.find(item => item.id === g.frameId);
         this.callbacks.gesture({ type: 'resize', frameId: g.frameId, width: frame.width + g.dx, height: frame.height + g.dy });
