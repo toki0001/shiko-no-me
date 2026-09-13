@@ -8,6 +8,7 @@
   <title>思考の芽 — 思考ノート</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./board.css">
+  <link rel="stylesheet" href="./focus.css">
 </head>
 <body>
   <a class="skip-link" href="#board">思考ボードへ</a>
@@ -16,7 +17,7 @@
       <div class="brand">
 <span class="brand-mark" aria-hidden="true">芽</span>
 <strong>思考の芽</strong>
-<button class="icon-button mobile-only" id="close-sidebar" aria-label="ノート一覧を閉じる">×</button>
+<button class="icon-button" id="close-sidebar" aria-label="ノート一覧を閉じる">×</button>
 </div>
       <div class="side-heading">
 <h2>ノート</h2>
@@ -25,23 +26,33 @@
       <nav id="notebooks" aria-label="ノートを選ぶ">
 <button class="notebook is-current">学びが続く勉強会をつくる</button>
 </nav>
+      <details class="board-menu"><summary>表示・整理</summary>
+        <div class="outline-tools"><span id="tree-summary">7個の考え</span><button class="text-button" id="collapse-all">枝をたたむ</button><button class="text-button" id="view-toggle" aria-pressed="false">一覧で読む</button></div>
+        <div class="board-toolbar" id="board-actions"><button class="button" id="multi-select" aria-pressed="false">複数選択</button><button class="button" id="new-frame">分類枠で囲む</button><span id="board-selection">カードの端から枝を追加</span><button class="button" id="board-edit">考えを編集</button></div>
+      </details>
       <div class="side-bottom">
+        <p class="local-label">共有中のデモ</p>
+        <a class="side-button" id="open-story" href="./?demo=origin">思考の芽が生まれるまで ↗</a>
+        <button class="side-button" id="share-notebook">このノートを共有</button>
         <p class="local-label">このブラウザに自動保存</p>
         <p class="muted small">端末間では共有されません。大切な考えはファイルにも残せます。</p>
         <button class="side-button" id="export-all">ノートを書き出す</button>
         <button class="side-button" id="import-file">ファイルから読み込む</button>
         <button class="side-button" id="open-help">使い方・保存について</button>
+        <a class="side-button" href="https://github.com/toki0001/shiko-no-me/issues/new" target="_blank" rel="noopener noreferrer">不具合・感想を送る ↗</a>
+        <p class="muted small">GitHubへの公開投稿です。個人情報やノート本文は書かないでください。</p>
       </div>
     </aside>
     <div class="sidebar-shade" id="sidebar-shade" hidden>
 </div>
     <main class="main">
       <header class="topbar">
-        <button class="button mobile-only" id="open-sidebar">ノート</button>
+        <button class="button" id="open-sidebar" aria-label="ノート一覧と操作メニュー">ノート</button>
+        <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
         <span class="save-status" id="save-status" role="status">このブラウザに保存</span>
         <div class="top-actions">
-<button class="button" id="undo" disabled>元に戻す</button>
-<button class="button ai-button" id="open-ai">AIと考える <span id="pending-count" hidden>
+<button class="button" id="undo" aria-label="元に戻す" disabled>戻す</button>
+<button class="button ai-button" id="open-ai" aria-label="AIと考える">AI <span id="pending-count" hidden>
 </span>
 </button>
 </div>
@@ -52,28 +63,22 @@
         <section class="paper" aria-labelledby="notebook-title">
           <div class="notebook-heading">
 <p class="eyebrow" id="notebook-context">思考ボード</p>
-<h1 id="notebook-title">学びが続く勉強会をつくる</h1>
 <p class="notebook-note" id="notebook-note">一人だと後回しになる学びを、無理なく続けたい。</p>
-</div>
-          <div class="outline-tools">
-<span id="tree-summary">7個の考え</span>
-<button class="text-button" id="collapse-all">枝をたたむ</button>
-<button class="text-button" id="view-toggle" aria-pressed="false">一覧で読む</button>
 </div>
           <div id="focus-path" class="focus-path" hidden>
 </div>
-          <div class="board-toolbar" id="board-actions">
-            <button class="button" id="multi-select" aria-pressed="false">複数選択</button>
-            <button class="button" id="new-frame">分類枠で囲む</button>
-            <span id="board-selection">カードの端から枝を追加</span>
-            <button class="button" id="board-edit">考えを編集</button>
-          </div>
           <div id="board" class="board" role="region" aria-label="考えを広げるボード" aria-describedby="board-instructions" tabindex="0"></div>
           <div class="board-navigation" id="board-navigation">
             <span id="board-instructions">余白をドラッグして移動。カードの端の＋で分岐。</span>
             <div class="zoom-controls"><button id="zoom-out" aria-label="ボードを縮小">−</button><output id="zoom-value">100%</output><button id="zoom-in" aria-label="ボードを拡大">＋</button><button id="fit-board">全体を見る</button></div>
           </div>
           <div class="sr-only" id="board-status" role="status"></div>
+          <div id="shared-banner" class="shared-banner" hidden>
+            <span class="shared-label">共有中のデモ・閲覧専用</span>
+            <div class="story-navigation"><button id="story-prev" aria-label="前の考え">←</button><output id="story-position">1 / 7</output><button id="story-next" aria-label="次の考え">→</button><button class="button" id="shared-details">メモを読む</button></div>
+            <button class="button primary" id="copy-shared">自分のノートにコピー</button>
+            <a href="./" class="text-button">自分のノートへ戻る</a>
+          </div>
           <div id="outline" class="outline" role="tree" aria-label="考えのツリー" tabindex="-1" hidden>
             <div class="tree-row selected" style="--depth:0">
 <span class="node-select">学びが続く勉強会をつくる</span>
@@ -238,7 +243,7 @@
 <h3>考えを枝分かれさせる</h3>
 <p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
 <h3>ボードを動かす</h3>
-<p>カードや余白をドラッグして移動できます。ホイールは表示範囲の移動、Ctrl＋ホイール・二本指のピンチ・画面下の＋／−はボードの拡大縮小です。「全体を見る」で俯瞰でき、小さいカードを選ぶと拡大します。「一覧で読む」で階層順にも読めます。</p>
+<p>カードや余白をドラッグして移動できます。ホイールは表示範囲の移動、Ctrl＋ホイール・二本指のピンチ・右上の＋／−はボードの拡大縮小です。「全体を見る」で俯瞰でき、小さいカードを選ぶと拡大します。左上の「ノート」→「表示・整理」から「一覧で読む」に切り替えられます。</p>
 <h3>色と枠で分類する</h3>
 <p>カードを選んで編集欄を開くと、元からつながる線の色を変えられます。「分類枠で囲む」で選んだ枝全体を囲み、名前を付けます。別々のカードを囲むなら「複数選択」を有効にして選びます。PCではShiftを押して追加選択もできます。</p>
 <p>枠の見出しをドラッグすると中身も移動し、右下のつまみでサイズを変えると完全に囲まれたカードが中に入ります。枠だけを外してもカードは消えません。枠は分類、線は派生元を表し、採用・保留の判断とは独立しています。</p>

@@ -22,7 +22,13 @@ export class BoardView {
     }, { passive: false });
     container.addEventListener('keydown', event => this.keydown(event));
     window.addEventListener('blur', () => this.cancelGesture());
-    this.resizeObserver = new ResizeObserver(() => { if (this.book) this.transform(); }); this.resizeObserver.observe(container);
+    this.resizeObserver = new ResizeObserver(([entry]) => {
+      if (!this.book) return;
+      const { width, height } = entry.contentRect;
+      // Rotation/resizing preserves the world point at the viewport center.
+      if (this.viewportSize) { this.view.x += (width - this.viewportSize.width) / 2; this.view.y += (height - this.viewportSize.height) / 2; }
+      this.viewportSize = { width, height }; this.transform();
+    }); this.resizeObserver.observe(container);
   }
   render(book, rows, selectedIds, selectedFrame) {
     const focused = document.activeElement;
@@ -137,7 +143,7 @@ export class BoardView {
     const dx = event.clientX - g.x, dy = event.clientY - g.y;
     if (!g.moved && Math.hypot(dx, dy) < (g.pointerType === 'touch' ? 10 : 5)) return;
     g.moved = true; this.lastTap = null; g.dx = dx / g.view.scale; g.dy = dy / g.view.scale;
-    if (g.type === 'pan') { this.view.x = g.view.x + dx; this.view.y = g.view.y + dy; this.transform(); return; }
+    if (g.type === 'pan' || this.callbacks.readOnly?.()) { this.view.x = g.view.x + dx; this.view.y = g.view.y + dy; this.transform(); return; }
     if (this.dragFrame) return;
     this.dragFrame = requestAnimationFrame(() => { this.dragFrame = null; this.previewGesture(); });
   }
@@ -160,6 +166,7 @@ export class BoardView {
     if (!g || g.pointerId !== event.pointerId) return;
     if (g.moved) {
       this.lastTap = null;
+      if (this.callbacks.readOnly?.()) return;
       if (g.type === 'resize') {
         const frame = this.book.frames.find(item => item.id === g.frameId);
         this.callbacks.gesture({ type: 'resize', frameId: g.frameId, width: frame.width + g.dx, height: frame.height + g.dy });
@@ -169,7 +176,7 @@ export class BoardView {
     if (g.type === 'frame' || g.type === 'resize') { this.callbacks.frame(g.frameId); return; }
     if (g.type === 'cards') {
       const previous = this.lastTap, now = performance.now();
-      const double = g.pointerType === 'touch' && !this.callbacks.multiple() && previous?.id === g.cardId && now - previous.time < 340 && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24;
+      const double = g.pointerType === 'touch' && !this.callbacks.readOnly?.() && !this.callbacks.multiple() && previous?.id === g.cardId && now - previous.time < 340 && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24;
       if (double) { this.lastTap = null; this.callbacks.add(g.cardId, 'right'); }
       else { this.callbacks.select(g.cardId, g.shiftKey); this.lastTap = { id: g.cardId, time: now, x: event.clientX, y: event.clientY }; }
     } else { this.lastTap = null; this.callbacks.clearFrame(); }
@@ -181,6 +188,7 @@ export class BoardView {
     if (event.key === 'Escape') { this.cancelGesture(); this.callbacks.escape(); return; }
     const card = event.target.closest('.thought-card'), frame = event.target.closest('.classification-frame');
     if (event.altKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      if (this.callbacks.readOnly?.()) { event.preventDefault(); return; }
       event.preventDefault(); const step = event.shiftKey ? 80 : 24, dx = event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0, dy = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0;
       if (frame) { this.callbacks.gesture({ type: 'frame', frameId: frame.dataset.frameId, dx, dy }); this.frameElements.get(frame.dataset.frameId)?.querySelector('.frame-title').focus({ preventScroll: true }); }
       else if (card) { this.callbacks.gesture({ type: 'cards', ids: [card.dataset.nodeId], dx, dy }); this.cardElements.get(card.dataset.nodeId)?.querySelector('.card-body').focus({ preventScroll: true }); }

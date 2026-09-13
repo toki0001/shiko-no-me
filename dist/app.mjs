@@ -2,12 +2,18 @@ import { LIMITS, STATES, uid, clone, createNotebook, getNode, children, ancestor
 import { KEY, load, save } from './storage.mjs';
 import { initializeBoard, freePosition, moveCards, createFrame, moveFrame, resizeFrame, syncFrameMembership, setLineColor, PALETTE } from './board-model.mjs';
 import { BoardView } from './board-view.mjs';
+import { createIdeaStory } from './story.mjs';
 
 const $ = id => document.getElementById(id);
 let local;
 try { local = window.localStorage; } catch { local = { getItem() { throw new Error('unavailable'); } }; }
 const loaded = load(local);
-let workspace = loaded.workspace, savedRaw = loaded.raw, blocked = loaded.blocked, saveError = '', selectedId, focusId, invalidTitle = false;
+const story = new URLSearchParams(location.search).get('demo') === 'origin' ? createIdeaStory() : null;
+let readOnly = Boolean(story), storyIndex = 0;
+// A shared view gets an isolated workspace. Merely opening a public link must
+// never overwrite this browser's own notebooks or mark them as shared.
+let workspace = story ? { version: 1, activeId: story.notebook.id, notebooks: [story.notebook] } : loaded.workspace;
+let savedRaw = loaded.raw, blocked = loaded.blocked, saveError = '', selectedId, focusId, invalidTitle = false;
 let saveQueued = false, saveTimer, saveAgain = false, sidebarReturn, editorReturn;
 let selectedIds = new Set(), selectedFrameId = null, multipleMode = false, viewMode = 'board', draft = null;
 let composingTarget = null;
@@ -20,6 +26,7 @@ selectedIds.add(selectedId);
 const activeNode = () => getNode(book(), selectedId) ?? getNode(book(), book().rootId);
 workspace.notebooks.forEach(initializeBoard);
 const boardView = new BoardView($('board'), {
+  readOnly: () => readOnly,
   stateLabel: state => STATES[state], select: selectBoardNode, add: beginDraft,
   ready: editorReady, multiple: () => multipleMode,
   frame: selectFrame, clearFrame: () => { selectedFrameId = null; renderBoardTools(); },
@@ -38,6 +45,7 @@ function notice(message) {
   $('notice').append(button('ノートを書き出す', '', exportAll)); $('notice').hidden = false;
 }
 function persist() {
+  if (readOnly) { $('save-status').textContent = '共有ノート・閲覧専用'; return; }
   clearTimeout(saveTimer);
   if (blocked) { $('save-status').textContent = '未保存・書き出しを'; return; }
   $('save-status').textContent = '保存待ち…';
@@ -70,6 +78,8 @@ function editorReady() {
   toast('考えを空欄にできません。文章を入力してください。'); openEditor(); return false;
 }
 function transaction(change, { group = '', inspector = true } = {}) {
+  // 変更前の全体を保存し、検証に失敗したら戻す。取り消しと保存が別の内容にならないよう、入口を一つにする。
+  if (readOnly) { toast('共有ノートです。編集するときは「自分のノートにコピー」を押してください。'); return { ok: false, error: new Error('閲覧専用です。') }; }
   const previous = clone(workspace), previousSelected = selectedId, previousFocus = focusId, previousIds = new Set(selectedIds), previousFrame = selectedFrameId;
   try {
     const result = change(); validateWorkspace(workspace);
@@ -160,10 +170,11 @@ function renderEditor() {
   if (selectedFrameId || selectedIds.size !== 1) { closeEditor(false); $('inspector').inert = true; return; }
   $('inspector').inert = false;
   const node = activeNode();
+  $('node-text').readOnly = readOnly; $('node-note').readOnly = readOnly;
   $('node-text').value = node.text; $('node-note').value = node.note; invalidTitle = false;
   $('breadcrumb').textContent = ancestors(book(), selectedId).map(part => part.text).join(' › ');
   $('node-source').textContent = node.source === 'human' ? '自分の考え' : node.source === 'ai' ? 'AIの提案から追加' : 'AIの提案を自分で編集';
-  for (const b of $('state-buttons').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.state === node.state));
+  for (const b of $('state-buttons').querySelectorAll('button')) { b.setAttribute('aria-pressed', String(b.dataset.state === node.state)); b.disabled = readOnly; }
   const peers = children(book(), node.parentId), index = peers.findIndex(peer => peer.id === node.id), isRoot = node.parentId === null;
   $('move-up').disabled = isRoot || index === 0; $('move-down').disabled = isRoot || index === peers.length - 1;
   $('indent').disabled = isRoot || index === 0; $('outdent').disabled = isRoot || getNode(book(), node.parentId)?.parentId === null;
@@ -185,7 +196,7 @@ function openEditor() {
 }
 function closeEditor(restore = true) {
   const wasOpen = $('inspector').classList.contains('is-open'); $('inspector').classList.remove('is-open'); setEditorModal(false);
-  if (restore && wasOpen) (editorReturn?.isConnected && editorReturn.getClientRects().length ? editorReturn : compact.matches ? $('mobile-edit') : $('board-edit')).focus();
+  if (restore && wasOpen) (editorReturn?.isConnected && editorReturn.getClientRects().length ? editorReturn : $(viewMode === 'outline' ? 'outline' : 'board')).focus();
 }
 function trapFocus(event, container) {
   if (event.key !== 'Tab') return;
@@ -207,6 +218,7 @@ function treeKeydown(event) {
   if (event.key === 'ArrowLeft') { if (children(book(), selectedId).length && !collapsed.has(selectedId)) toggleBranch(selectedId); else if (node.parentId && selectedId !== focusId) selectNode(node.parentId); }
 }
 function openEntry(mode) {
+  if (readOnly) return;
   if (!editorReady()) return;
   entryMode = mode; entryParentId = mode === 'sibling' ? activeNode().parentId : selectedId;
   if (mode === 'sibling' && !entryParentId) return;
@@ -226,6 +238,7 @@ $('entry-form').addEventListener('submit', event => {
   if (outcome.ok) { $('entry-dialog').close(); closeSidebar(false); closeEditor(false); focusRow(); toast('考えを追加しました'); } else $('entry-error').textContent = outcome.error.message;
 });
 function editNode(event) {
+  if (readOnly) return;
   if (event.isComposing) return;
   const field = event.target.id === 'node-text' ? 'text' : 'note', value = event.target.value;
   if (field === 'text' && !value.trim()) { invalidTitle = true; $('save-status').textContent = '考えを入力してください'; $('undo').disabled = false; $('editor-undo').disabled = false; return; }
@@ -287,7 +300,7 @@ $('mobile-edit').addEventListener('click', () => { if (!editorReady()) return; i
 function closeSidebar(restore = true) {
   const wasOpen = $('sidebar').classList.contains('is-open'); $('sidebar').classList.remove('is-open'); $('sidebar-shade').hidden = true;
   document.querySelector('.main').inert = false; $('sidebar').removeAttribute('role'); $('sidebar').removeAttribute('aria-modal');
-  if (restore && wasOpen && compact.matches) (sidebarReturn?.isConnected ? sidebarReturn : $('open-sidebar')).focus();
+  if (restore && wasOpen) (sidebarReturn?.isConnected ? sidebarReturn : $('open-sidebar')).focus();
 }
 $('open-sidebar').addEventListener('click', () => {
   if (!editorReady()) return;
@@ -296,15 +309,16 @@ $('open-sidebar').addEventListener('click', () => {
 });
 $('close-sidebar').addEventListener('click', () => closeSidebar()); $('sidebar-shade').addEventListener('click', () => closeSidebar());
 $('open-help').addEventListener('click', () => { if (editorReady()) $('help-dialog').showModal(); });
+$('share-notebook').addEventListener('click', () => { closeSidebar(); toast('デモ版では自分のノートを共有できません。共有中の企画デモは「ノート」から開けます。'); });
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 document.addEventListener('keydown', event => {
   if (event.isComposing || composingTarget) return;
   if (document.querySelector('dialog[open]')) return;
   if (event.key === 'Escape') { closeSidebar(); if (editorReady()) closeEditor(); }
-  if (compact.matches && $('sidebar').classList.contains('is-open')) trapFocus(event, $('sidebar'));
+  if ($('sidebar').classList.contains('is-open')) trapFocus(event, $('sidebar'));
   else if (compact.matches && $('inspector').classList.contains('is-open')) trapFocus(event, $('inspector'));
 });
-compact.addEventListener('change', () => { if (composingTarget) { setEditorModal(compact.matches && $('inspector').classList.contains('is-open')); return; } if (!compact.matches) { closeSidebar(false); closeEditor(false); } });
+compact.addEventListener('change', () => { if (composingTarget) { setEditorModal(compact.matches && $('inspector').classList.contains('is-open')); return; } if (!compact.matches) { closeSidebar(); closeEditor(); } });
 function exportAll() {
   if (!compositionReady()) return;
   if (draft && !commitDraft()) return;
@@ -338,6 +352,7 @@ $('copy-prompt').addEventListener('click', async () => {
   catch { $('prompt-preview').closest('details').open = true; $('prompt-preview').focus(); $('prompt-preview').select(); toast('コピーできなかったため文章を選択しました。手動でコピーしてください'); }
 });
 function receiveProposals(payload) {
+  // AIの回答は未信頼の入力。ここでは承認待ちに置くだけで、ノードを追加しない。
   if (composingTarget || draft || invalidTitle) throw new Error('入力中の考えを確定してから、案を受け取ってください。');
   const result = transaction(() => stageProposals(book(), payload), { inspector: false });
   if (!result.ok) throw result.error;
@@ -380,6 +395,7 @@ function renderProposals() {
   restoreProposalFocus();
 }
 window.addEventListener('storage', event => {
+  if (readOnly) return;
   if (event.key !== KEY || event.newValue === savedRaw) return;
   blocked = true; saveError = '別のタブでノートが変更されました。いまの内容を書き出してから、ページを再読み込みしてください。'; notice(saveError); $('save-status').textContent = '別タブで変更あり';
 });
@@ -415,6 +431,7 @@ function selectBoardNode(id, additive = false) {
   return true;
 }
 function beginDraft(parentId, side) {
+  if (readOnly) { toast('このノートは閲覧専用です。コピーすると自由に枝を追加できます。'); return; }
   if (!editorReady()) return;
   try {
     if (book().nodes.length >= LIMITS.nodes) throw new Error(`1冊に追加できる考えは${LIMITS.nodes}個までです。`);
@@ -483,14 +500,15 @@ $('delete-frame').addEventListener('click', () => {
 });
 $('new-frame').addEventListener('click', () => {
   if (!editorReady()) return;
+  closeSidebar(false);
   const ids = multipleMode || selectedIds.size > 1 ? [...selectedIds] : subtree(book(), selectedId).map(node => node.id);
   const result = transaction(() => { const frame = createFrame(book(), ids); syncFrameMembership(book()); selectedFrameId = frame.id; return frame.id; });
   if (result.ok) selectFrame(result.result, true);
 });
-$('multi-select').addEventListener('click', () => { if (!editorReady()) return; multipleMode = !multipleMode; selectedFrameId = null; if (!multipleMode) selectedIds = new Set([selectedId]); renderTree(); });
-$('board-edit').addEventListener('click', () => { if (!editorReady()) return; if (selectedFrameId) selectFrame(selectedFrameId, true); else openEditor(); });
+$('multi-select').addEventListener('click', () => { if (!editorReady()) return; closeSidebar(false); multipleMode = !multipleMode; selectedFrameId = null; if (!multipleMode) selectedIds = new Set([selectedId]); renderTree(); focusRow(); });
+$('board-edit').addEventListener('click', () => { if (!editorReady()) return; closeSidebar(false); if (selectedFrameId) selectFrame(selectedFrameId, true); else openEditor(); });
 $('view-toggle').addEventListener('click', () => {
-  if (!editorReady()) return; closeEditor(false); viewMode = viewMode === 'board' ? 'outline' : 'board'; multipleMode = false; selectedFrameId = null; selectedIds = new Set([selectedId]); renderTree();
+  if (!editorReady()) return; closeSidebar(false); closeEditor(false); viewMode = viewMode === 'board' ? 'outline' : 'board'; multipleMode = false; selectedFrameId = null; selectedIds = new Set([selectedId]); renderTree();
   if (viewMode === 'board') boardView.reveal(selectedId); else focusRow();
 });
 $('zoom-in').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1.2); });
@@ -516,10 +534,37 @@ function registerAgentTools() {
       const added = receiveProposals(input); return { staged: added, pending: pending().length, treeChanged: false };
     } }
   ];
-  for (const definition of definitions) {
+  for (const definition of definitions.filter(item => !readOnly || item.name === 'read_selected_thought')) {
     try { Promise.resolve(context.registerTool(definition, { signal: lifecycle.signal })).catch(() => {}); } catch { /* Manual copy/import remains available. */ }
   }
   window.addEventListener('pagehide', () => lifecycle.abort(), { once: true });
 }
-render(); if (loaded.message) { notice(loaded.message); $('save-status').textContent = '保存データの確認が必要'; } else if (savedRaw === null) persist();
+function showStoryStep() {
+  if (!story || !readOnly) return;
+  selectedId = story.steps[storyIndex]; selectedIds = new Set([selectedId]); selectedFrameId = null; render();
+  $('story-position').textContent = `${storyIndex + 1} / ${story.steps.length}`;
+  $('story-prev').disabled = storyIndex === 0; $('story-next').disabled = storyIndex === story.steps.length - 1;
+  boardView.reveal(selectedId);
+}
+$('story-prev').addEventListener('click', () => { if (storyIndex > 0) { storyIndex--; showStoryStep(); } });
+$('story-next').addEventListener('click', () => { if (story && storyIndex < story.steps.length - 1) { storyIndex++; showStoryStep(); } });
+$('shared-details').addEventListener('click', openEditor);
+$('copy-shared').addEventListener('click', async () => {
+  if (!readOnly) return;
+  // 復旧待ちの保存領域へコピーを作らない。コピー成功の表示は永続保存を確認した後だけにする。
+  if (blocked) { notice('このブラウザは保存データの確認が必要です。コピーは作成していません。共有ノートはファイルに書き出せます。'); return; }
+  try {
+    const original = clone(book()), own = clone(loaded.workspace);
+    const copies = importNotebooks(own, JSON.stringify({ version: 1, activeId: original.id, notebooks: [original] }));
+    workspace = own; readOnly = false; viewMode = 'board'; history.length = 0; selectedId = copies[0].rootId; selectedIds = new Set([selectedId]); focusId = selectedId;
+    document.body.classList.remove('shared-view'); $('shared-banner').hidden = true; closeEditor(false); closeSidebar(false);
+    window.history.replaceState(null, '', location.pathname); render(); boardView.reveal(selectedId, true);
+    await flushSave();
+    toast(saveError || blocked ? 'コピーはまだ保存できていません。「ノートを書き出す」で残してください。' : '自分のノートに保存しました。元の共有ノートは変わりません');
+  } catch (error) { toast(error.message); }
+});
+document.body.classList.toggle('shared-view', readOnly); $('shared-banner').hidden = !readOnly;
+render();
+if (readOnly) { $('save-status').textContent = '共有ノート・閲覧専用'; showStoryStep(); }
+else if (loaded.message) { notice(loaded.message); $('save-status').textContent = '保存データの確認が必要'; } else if (savedRaw === null) persist();
 registerAgentTools();

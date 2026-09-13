@@ -95,6 +95,8 @@ export function deleteBranch(book, id) {
   reorder(book, parentId); return parentId;
 }
 export function validateNotebook(book) {
+  // ファイル・AI経由の入力を、画面や保存処理で使う前に検証する。
+  // 特にID重複・孤立・循環を拒否し、ツリー操作の前提をここで保証する。
   ensure(isObject(book) && isId(book.id) && isId(book.rootId), 'ノートの形式が違います。');
   ensure(Array.isArray(book.nodes) && book.nodes.length > 0 && book.nodes.length <= LIMITS.nodes, `考えは1冊あたり1〜${LIMITS.nodes}個にしてください。`);
   const ids = new Set();

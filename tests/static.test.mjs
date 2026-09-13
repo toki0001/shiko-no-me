@@ -8,7 +8,10 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 test('all local HTML assets and module imports exist and are relative', async () => {
   const html = await readFile(path.join(root, 'dist/index.html'), 'utf8');
   for (const match of html.matchAll(/(?:src|href)="([^"#][^"]*)"/g)) {
-    assert(match[1].startsWith('./'), `not a relative asset: ${match[1]}`); await access(path.join(root, 'dist', match[1]));
+    if (match[1] === 'https://github.com/toki0001/shiko-no-me/issues/new') continue; // User-initiated feedback link, never a loaded dependency.
+    assert(match[1].startsWith('./'), `not a relative asset: ${match[1]}`);
+    // Navigation links may contain a query; only the pathname is a disk asset.
+    await access(path.join(root, 'dist', match[1].split(/[?#]/)[0]));
   }
   for (const name of await readdir(path.join(root, 'dist'))) {
     if (!name.endsWith('.mjs')) continue;
