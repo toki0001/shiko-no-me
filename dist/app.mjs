@@ -6,7 +6,8 @@ let local;
 try { local = window.localStorage; } catch { local = { getItem() { throw new Error('unavailable'); } }; }
 const loaded = load(local);
 let workspace = loaded.workspace, savedRaw = loaded.raw, blocked = loaded.blocked, saveError = '', selectedId, focusId, invalidTitle = false;
-let saveQueued = false;
+let saveQueued = false, saveTimer, saveAgain = false, sidebarReturn, editorReturn;
+const compact = matchMedia('(max-width: 940px)');
 let entryParentId, entryMode, aiParentId, confirmCallback, toastTimer, editGroup = '', editTime = 0;
 const collapsed = new Set(), history = [];
 const book = () => workspace.notebooks.find(item => item.id === workspace.activeId);
@@ -20,23 +21,31 @@ function notice(message) {
   $('notice').replaceChildren(element('span', '', message));
   $('notice').append(button('ノートを書き出す', '', exportAll)); $('notice').hidden = false;
 }
-async function persist() {
+function persist() {
+  clearTimeout(saveTimer);
   if (blocked) { $('save-status').textContent = '未保存・書き出しを'; return; }
-  if (saveQueued) return;
+  $('save-status').textContent = '保存待ち…';
+  saveTimer = setTimeout(flushSave, 300);
+}
+async function flushSave() {
+  clearTimeout(saveTimer); saveTimer = undefined;
+  if (blocked) return;
+  if (saveQueued) { saveAgain = true; return; }
   saveQueued = true;
+  $('save-status').textContent = '保存中…';
   try {
     const write = () => { if (!blocked) savedRaw = save(local, workspace, savedRaw); };
     // Chrome's origin-scoped lock serializes writers in separate tabs. The
     // revision check still detects a stale tab after it acquires the lock.
     if (navigator.locks?.request) await navigator.locks.request(KEY, { mode: 'exclusive' }, write);
     else write();
-    if (!blocked) { saveError = ''; $('save-status').textContent = invalidTitle ? '考えを入力してください' : 'このブラウザに保存済み'; $('notice').hidden = true; }
+    if (!blocked) { saveError = ''; $('save-status').textContent = invalidTitle ? '考えを入力してください' : saveTimer ? '保存待ち…' : 'このブラウザに保存済み'; $('notice').hidden = true; }
   } catch (error) { saveError = error.message; $('save-status').textContent = '未保存・書き出しを'; notice(saveError); }
-  finally { saveQueued = false; }
+  finally { saveQueued = false; if (saveAgain) { saveAgain = false; persist(); } }
 }
 function editorReady() {
   if (!invalidTitle) return true;
-  toast('考えを空欄にできません。文章を入力してください。'); $('inspector').classList.add('is-open'); $('node-text').focus(); return false;
+  toast('考えを空欄にできません。文章を入力してください。'); openEditor(); return false;
 }
 function transaction(change, { group = '', inspector = true } = {}) {
   const previous = clone(workspace), previousSelected = selectedId, previousFocus = focusId;
@@ -55,6 +64,7 @@ function render(inspector = true) {
   if (!getNode(book(), focusId)) focusId = book().rootId;
   renderNotebooks(); renderTree(); if (inspector) renderEditor(); renderProposals();
   $('undo').disabled = history.length === 0;
+  $('editor-undo').disabled = history.length === 0;
   $('pending-count').hidden = pending().length === 0; $('pending-count').textContent = pending().length;
 }
 function renderNotebooks() {
@@ -86,6 +96,7 @@ function renderTree() {
     const select = button(node.text, 'node-select', () => selectNode(node.id)); select.tabIndex = -1;
     select.addEventListener('dblclick', () => { if (selectNode(node.id)) openEditor(); });
     row.append(toggle, select);
+    if (node.id === selectedId) row.append(element('span', 'selection-mark', '選択中'));
     if (node.state !== 'growing') row.append(element('span', `state-label ${node.state}`, STATES[node.state]));
     row.addEventListener('focus', () => { if (selectedId !== node.id) selectNode(node.id, false); });
     row.addEventListener('keydown', treeKeydown); fragment.append(row);
@@ -119,7 +130,26 @@ function renderEditor() {
   $('delete-node').textContent = isRoot ? 'このノートを削除' : 'この枝を削除';
   $('mobile-sibling').disabled = isRoot;
 }
-function openEditor() { $('inspector').classList.add('is-open'); $('node-text').focus(); }
+function setEditorModal(enabled) {
+  for (const target of [document.querySelector('.topbar'), document.querySelector('.paper'), document.querySelector('.mobile-actions'), $('notice'), $('sidebar')]) target.inert = enabled;
+  if (enabled) { $('inspector').setAttribute('role', 'dialog'); $('inspector').setAttribute('aria-modal', 'true'); }
+  else { $('inspector').removeAttribute('role'); $('inspector').removeAttribute('aria-modal'); }
+}
+function openEditor() {
+  if (!$('inspector').classList.contains('is-open')) editorReturn = document.activeElement;
+  $('inspector').classList.add('is-open'); setEditorModal(compact.matches); $('node-text').focus();
+}
+function closeEditor(restore = true) {
+  const wasOpen = $('inspector').classList.contains('is-open'); $('inspector').classList.remove('is-open'); setEditorModal(false);
+  if (restore && wasOpen && compact.matches) (editorReturn?.isConnected && editorReturn.getClientRects().length ? editorReturn : $('mobile-edit')).focus();
+}
+function trapFocus(event, container) {
+  if (event.key !== 'Tab') return;
+  const targets = [...container.querySelectorAll('button:not(:disabled),a[href],textarea,input,select,summary,[tabindex="0"]')].filter(node => node.getClientRects().length && !node.inert);
+  const first = targets[0], last = targets.at(-1);
+  if (event.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && (document.activeElement === last || !container.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
+}
 function treeKeydown(event) {
   if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
   const keys = ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Escape']; if (!keys.includes(event.key)) return;
@@ -148,15 +178,27 @@ $('entry-form').addEventListener('submit', event => {
       const added = createNotebook($('entry-text').value.trim(), $('entry-note').value); workspace.notebooks.push(added); workspace.activeId = added.id; selectedId = added.rootId; focusId = added.rootId;
     } else { selectedId = addNode(book(), entryParentId, $('entry-text').value, $('entry-note').value).id; ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); }
   });
-  if (outcome.ok) { $('entry-dialog').close(); closeSidebar(); focusRow(); toast('考えを追加しました'); } else $('entry-error').textContent = outcome.error.message;
+  if (outcome.ok) { $('entry-dialog').close(); closeSidebar(false); closeEditor(false); focusRow(); toast('考えを追加しました'); } else $('entry-error').textContent = outcome.error.message;
 });
 function editNode(event) {
   if (event.isComposing) return;
   const field = event.target.id === 'node-text' ? 'text' : 'note', value = event.target.value;
-  if (field === 'text' && !value.trim()) { invalidTitle = true; $('save-status').textContent = '考えを入力してください'; return; }
+  if (field === 'text' && !value.trim()) { invalidTitle = true; $('save-status').textContent = '考えを入力してください'; $('undo').disabled = false; $('editor-undo').disabled = false; return; }
   if (field === 'text') invalidTitle = false;
   if (activeNode()[field] === value) return;
-  transaction(() => updateNode(book(), selectedId, { [field]: value }), { group: `${workspace.activeId}:${selectedId}:edit`, inspector: false });
+  // Validate only the edited field on the keystroke path. Snapshot once per
+  // editing burst; full validation/serialization happens on the debounced save.
+  const group = `${workspace.activeId}:${selectedId}:edit`, now = Date.now();
+  const snapshot = group !== editGroup || now - editTime > 1500 ? { workspace: clone(workspace), selectedId, focusId } : null;
+  try {
+    updateNode(book(), selectedId, { [field]: value }); book().updatedAt = new Date().toISOString();
+    if (snapshot) { history.push(snapshot); if (history.length > 40) history.shift(); }
+    editGroup = group; editTime = now; persist();
+    if (field === 'text' || selectedId === book().rootId) { renderNotebooks(); renderTree(); }
+    $('undo').disabled = false;
+    $('editor-undo').disabled = false;
+    $('node-source').textContent = activeNode().source === 'human' ? '自分の考え' : 'AIの提案を自分で編集';
+  } catch (error) { toast(error.message); }
 }
 for (const id of ['node-text', 'node-note']) { $(id).addEventListener('input', editNode); $(id).addEventListener('compositionend', editNode); }
 for (const b of $('state-buttons').querySelectorAll('button')) b.addEventListener('click', () => { if (editorReady()) transaction(() => updateNode(book(), selectedId, { state: b.dataset.state })); });
@@ -176,22 +218,36 @@ $('delete-node').addEventListener('click', () => {
   });
 });
 $('undo').addEventListener('click', () => {
-  if (invalidTitle) { renderEditor(); $('save-status').textContent = '空欄の編集を取り消しました'; return; }
+  if (invalidTitle) { renderEditor(); $('undo').disabled = history.length === 0; $('editor-undo').disabled = history.length === 0; $('save-status').textContent = '空欄の編集を取り消しました'; return; }
   const previous = history.pop(); if (!previous) return;
   workspace = previous.workspace; selectedId = previous.selectedId; focusId = previous.focusId; editGroup = ''; ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); persist(); render(); toast('一つ前の状態に戻しました');
 });
-$('focus-branch').addEventListener('click', () => { if (!editorReady()) return; focusId = selectedId; collapsed.delete(selectedId); $('inspector').classList.remove('is-open'); renderTree(); });
+$('editor-undo').addEventListener('click', () => $('undo').click());
+$('focus-branch').addEventListener('click', () => { if (!editorReady()) return; focusId = selectedId; collapsed.delete(selectedId); closeEditor(); renderTree(); });
 $('collapse-all').addEventListener('click', () => { if (!editorReady()) return; if (collapsed.size) collapsed.clear(); else { book().nodes.forEach(node => { if (children(book(), node.id).length) collapsed.add(node.id); }); selectedId = focusId; } renderTree(); renderEditor(); });
 for (const id of ['add-child', 'mobile-add']) $(id).addEventListener('click', () => openEntry('child'));
 $('add-sibling').addEventListener('click', () => openEntry('sibling')); $('new-notebook').addEventListener('click', () => openEntry('notebook'));
 $('mobile-sibling').addEventListener('click', () => openEntry('sibling'));
-$('mobile-edit').addEventListener('click', openEditor); $('close-inspector').addEventListener('click', () => { if (editorReady()) { $('inspector').classList.remove('is-open'); $('mobile-edit').focus(); } });
-function closeSidebar() { $('sidebar').classList.remove('is-open'); $('sidebar-shade').hidden = true; }
-$('open-sidebar').addEventListener('click', () => { $('sidebar').classList.add('is-open'); $('sidebar-shade').hidden = false; $('close-sidebar').focus(); });
-$('close-sidebar').addEventListener('click', () => { closeSidebar(); $('open-sidebar').focus(); }); $('sidebar-shade').addEventListener('click', closeSidebar);
+$('mobile-edit').addEventListener('click', openEditor); $('close-inspector').addEventListener('click', () => { if (editorReady()) closeEditor(); });
+function closeSidebar(restore = true) {
+  const wasOpen = $('sidebar').classList.contains('is-open'); $('sidebar').classList.remove('is-open'); $('sidebar-shade').hidden = true;
+  document.querySelector('.main').inert = false; $('sidebar').removeAttribute('role'); $('sidebar').removeAttribute('aria-modal');
+  if (restore && wasOpen && compact.matches) (sidebarReturn?.isConnected ? sidebarReturn : $('open-sidebar')).focus();
+}
+$('open-sidebar').addEventListener('click', () => {
+  sidebarReturn = document.activeElement; $('sidebar').classList.add('is-open'); $('sidebar-shade').hidden = false;
+  document.querySelector('.main').inert = true; $('sidebar').setAttribute('role', 'dialog'); $('sidebar').setAttribute('aria-modal', 'true'); $('close-sidebar').focus();
+});
+$('close-sidebar').addEventListener('click', () => closeSidebar()); $('sidebar-shade').addEventListener('click', () => closeSidebar());
 $('open-help').addEventListener('click', () => $('help-dialog').showModal());
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.querySelector('dialog[open]')) { closeSidebar(); if (editorReady()) $('inspector').classList.remove('is-open'); } });
+document.addEventListener('keydown', event => {
+  if (document.querySelector('dialog[open]')) return;
+  if (event.key === 'Escape') { closeSidebar(); if (editorReady()) closeEditor(); }
+  if (compact.matches && $('sidebar').classList.contains('is-open')) trapFocus(event, $('sidebar'));
+  else if (compact.matches && $('inspector').classList.contains('is-open')) trapFocus(event, $('inspector'));
+});
+compact.addEventListener('change', () => { if (!compact.matches) { closeSidebar(false); closeEditor(false); } });
 function exportAll() {
   const data = JSON.stringify(workspace, null, 2), blob = new Blob([data], { type: 'application/json' }), url = URL.createObjectURL(blob);
   const link = element('a'); link.href = url; link.download = `think-tree-${new Date().toISOString().slice(0, 10)}.json`; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
@@ -255,7 +311,8 @@ window.addEventListener('storage', event => {
   if (event.key !== KEY || event.newValue === savedRaw) return;
   blocked = true; saveError = '別のタブでノートが変更されました。いまの内容を書き出してから、ページを再読み込みしてください。'; notice(saveError); $('save-status').textContent = '別タブで変更あり';
 });
-window.addEventListener('beforeunload', event => { if (saveQueued || invalidTitle || saveError || blocked && history.length) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if (saveTimer || saveQueued || invalidTitle || saveError || blocked && history.length) { event.preventDefault(); event.returnValue = ''; } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveTimer) flushSave(); });
 
 // Optional browser-native agent surface. No SDK, network, or auto-approval tool.
 function registerAgentTools() {

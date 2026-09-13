@@ -28,7 +28,7 @@ npm test
 
 ## 静的な公開
 
-`dist/` は生成物ではなく、手書きのHTML・CSS・JavaScriptを置いた公開ディレクトリです。ビルドは不要で、`dist/` の内容だけで動きます。ファイル参照はすべて相対パスなので、GitHub Pagesのサブディレクトリにも配置できます。
+`dist/` は生成物ではなく、直接編集するHTML・CSS・JavaScriptを置いた公開ディレクトリです。ビルドは不要で、`dist/` の内容だけで動きます。ファイル参照はすべて相対パスなので、GitHub Pagesのサブディレクトリにも配置できます。
 
 Nodeの `server.mjs` は開発時の静的配信だけを担当します。公開ページはNodeサーバー・MCP SDK・モデルAPIに依存しません。Sites用の公開先識別情報は `.openai/hosting.json` に分離しています。
 

@@ -184,7 +184,10 @@ export function importNotebooks(workspace, raw) {
     const tree = input?.tree ?? input;
     ensure(Array.isArray(tree?.nodes), '思考の芽から書き出したJSONファイルを選んでください。');
     const book = createNotebook();
-    book.nodes = tree.nodes.map((node, index) => ({ id: node.id, parentId: node.parentId ?? null, text: node.text, note: node.note ?? '', state: node.state ?? 'growing', source: node.source ?? 'human', order: node.order ?? index }));
+    book.nodes = tree.nodes.map((node, index) => {
+      ensure(isObject(node), '枝の形式が違います。思考の芽から書き出したJSONを選んでください。');
+      return { id: node.id, parentId: node.parentId ?? null, text: node.text, note: node.note ?? '', state: node.state ?? 'growing', source: node.source ?? 'human', order: node.order ?? index };
+    });
     book.rootId = book.nodes.find(node => node.parentId === null)?.id;
     books = [validateNotebook(book)];
   }

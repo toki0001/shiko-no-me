@@ -81,7 +81,7 @@ test('duplicate proposal payloads are idempotent, including accepted proposals',
 });
 test('foreign notebooks, missing parents and malformed proposal batches are rejected atomically', () => {
   const { book } = fixture(), before = clone(book);
-  for (const change of [p => { p.notebookId = 'wrong'; }, p => { p.parentId = 'missing'; }, p => { p.branches = []; }, p => { p.branches[1].text = ''; }, p => { p.branches[1].note = 'x'.repeat(4001); }]) {
+  for (const change of [p => { p.notebookId = 'wrong'; }, p => { p.parentId = 'missing'; }, p => { p.branches = []; }, p => { p.branches[1].text = ''; }, p => { p.branches[1].note = 'x'.repeat(4001); }, p => { p.approve = true; }, p => { p.branches[0].source = 'human'; }]) {
     const payload = payloadFor(book); change(payload); assert.throws(() => stageProposals(book, payload)); assert.deepEqual(book, before);
   }
 });
