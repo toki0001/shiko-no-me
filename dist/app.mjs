@@ -32,7 +32,7 @@ const boardView = new BoardView($('board'), {
   frame: selectFrame, clearFrame: () => { selectedFrameId = null; renderBoardTools(); },
   gesture: commitGesture, edge: id => { if (selectBoardNode(id)) { openEditor(); $('line-color').focus(); } },
   edit: id => { if (selectBoardNode(id)) openEditor(); },
-  zoom: scale => { $('zoom-value').textContent = `${Math.round(scale * 100)}%`; },
+  zoom: scale => { $('zoom-value').textContent = `${Math.round(scale * 1000) / 10}%`; },
   escape: () => { cancelDraft(); multipleMode = false; selectedIds = new Set([selectedId]); selectedFrameId = null; renderTree(); $('view-toggle').focus(); },
   commitDraft, cancelDraft, draftChanged: () => { $('save-status').textContent = '新しい考えを入力中（未確定）'; }
 });
@@ -511,8 +511,8 @@ $('view-toggle').addEventListener('click', () => {
   if (!editorReady()) return; closeSidebar(false); closeEditor(false); viewMode = viewMode === 'board' ? 'outline' : 'board'; multipleMode = false; selectedFrameId = null; selectedIds = new Set([selectedId]); renderTree();
   if (viewMode === 'board') boardView.reveal(selectedId); else focusRow();
 });
-$('zoom-in').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1.2); });
-$('zoom-out').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1 / 1.2); });
+$('zoom-in').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1.05); });
+$('zoom-out').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1 / 1.05); });
 $('fit-board').addEventListener('click', () => { if (editorReady()) boardView.fit(); });
 $('line-color').addEventListener('change', () => { if (editorReady()) transaction(() => setLineColor(book(), [selectedId], $('line-color').value)); });
 for (const [value, name] of PALETTE) {

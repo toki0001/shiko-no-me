@@ -14,12 +14,7 @@ export class BoardView {
     container.addEventListener('pointerup', event => this.pointerUp(event));
     container.addEventListener('pointercancel', () => this.cancelGesture());
     container.addEventListener('lostpointercapture', event => { if (this.gesture?.pointerId === event.pointerId) this.cancelGesture(); });
-    container.addEventListener('wheel', event => {
-      if (event.target.closest('textarea,input')) return;
-      event.preventDefault(); this.lastTap = null;
-      if (event.ctrlKey || event.metaKey) this.zoomBy(Math.exp(-event.deltaY * .008), event.clientX, event.clientY);
-      else { this.view.x -= event.deltaX; this.view.y -= event.deltaY; this.transform(); }
-    }, { passive: false });
+    container.addEventListener('wheel', event => this.wheel(event), { passive: false });
     container.addEventListener('keydown', event => this.keydown(event));
     window.addEventListener('blur', () => this.cancelGesture());
     this.resizeObserver = new ResizeObserver(([entry]) => {
@@ -105,6 +100,17 @@ export class BoardView {
     const rect = this.container.getBoundingClientRect(), x = (clientX ?? rect.left + rect.width / 2) - rect.left, y = (clientY ?? rect.top + rect.height / 2) - rect.top;
     const before = this.view.scale, scale = Math.max(.25, Math.min(1.75, before * factor));
     this.view.x = x - (x - this.view.x) / before * scale; this.view.y = y - (y - this.view.y) / before * scale; this.view.scale = scale; this.transform();
+  }
+  wheel(event) {
+    if (event.target.closest('textarea,input')) return;
+    event.preventDefault(); this.lastTap = null;
+    // ホイールもトラックパッドのピンチもカーソルを中心にズームする。
+    // 符号だけの固定ステップにせず、小数の移動量を残す。行/ページ単位を補正し、大きな単発入力だけ抑える。
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.container.clientHeight : 1;
+    const delta = Math.max(-100, Math.min(100, event.deltaY * unit));
+    if (!Number.isFinite(delta) || delta === 0) return;
+    const sensitivity = event.ctrlKey || event.metaKey ? .003 : .001;
+    this.zoomBy(Math.exp(-delta * sensitivity), event.clientX, event.clientY);
   }
   reveal(id, focus = false) {
     const node = this.book.nodes.find(item => item.id === id); if (!node) return;
