@@ -7,9 +7,10 @@
   <meta name="theme-color" content="#f5f6f2">
   <title>思考の芽 — 思考ノート</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./board.css">
 </head>
 <body>
-  <a class="skip-link" href="#outline">考えのツリーへ</a>
+  <a class="skip-link" href="#board">思考ボードへ</a>
   <div class="app">
     <aside class="sidebar" id="sidebar" aria-label="ノート一覧">
       <div class="brand">
@@ -50,17 +51,30 @@
       <div class="workspace">
         <section class="paper" aria-labelledby="notebook-title">
           <div class="notebook-heading">
-<p class="eyebrow" id="notebook-context">思考ノート</p>
+<p class="eyebrow" id="notebook-context">思考ボード</p>
 <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
 <p class="notebook-note" id="notebook-note">一人だと後回しになる学びを、無理なく続けたい。</p>
 </div>
           <div class="outline-tools">
 <span id="tree-summary">7個の考え</span>
 <button class="text-button" id="collapse-all">枝をたたむ</button>
+<button class="text-button" id="view-toggle" aria-pressed="false">一覧で読む</button>
 </div>
           <div id="focus-path" class="focus-path" hidden>
 </div>
-          <div id="outline" class="outline" role="tree" aria-label="考えのツリー" tabindex="-1">
+          <div class="board-toolbar" id="board-actions">
+            <button class="button" id="multi-select" aria-pressed="false">複数選択</button>
+            <button class="button" id="new-frame">分類枠で囲む</button>
+            <span id="board-selection">カードの端から枝を追加</span>
+            <button class="button" id="board-edit">考えを編集</button>
+          </div>
+          <div id="board" class="board" role="region" aria-label="考えを広げるボード" aria-describedby="board-instructions" tabindex="0"></div>
+          <div class="board-navigation" id="board-navigation">
+            <span id="board-instructions">余白をドラッグして移動。カードの端の＋で分岐。</span>
+            <div class="zoom-controls"><button id="zoom-out" aria-label="ボードを縮小">−</button><output id="zoom-value">100%</output><button id="zoom-in" aria-label="ボードを拡大">＋</button><button id="fit-board">全体を見る</button></div>
+          </div>
+          <div class="sr-only" id="board-status" role="status"></div>
+          <div id="outline" class="outline" role="tree" aria-label="考えのツリー" tabindex="-1" hidden>
             <div class="tree-row selected" style="--depth:0">
 <span class="node-select">学びが続く勉強会をつくる</span>
 <span class="state-label growing">考え中</span>
@@ -87,7 +101,7 @@
 <span class="node-select">まず小さく試すには？</span>
 </div>
           </div>
-          <p class="keyboard-hint">枝を選んで編集。Enterで同じ階層に追加、Tabで一段深く。</p>
+          <p class="keyboard-hint">カードの端の＋から、考えを広げる。</p>
           <div class="tree-actions">
 <button class="button primary" id="add-child">＋ この先に考えを足す</button>
 <button class="button" id="add-sibling">同じ階層に足す</button>
@@ -96,7 +110,7 @@
         <aside class="inspector" id="inspector" aria-label="選んだ考えを編集">
           <div class="inspector-top">
 <span class="eyebrow">選んだ考え</span>
-<button class="icon-button mobile-only" id="close-inspector" aria-label="編集を閉じる">×</button>
+<button class="icon-button" id="close-inspector" aria-label="編集を閉じる">×</button>
 </div>
           <p class="breadcrumb" id="breadcrumb">学びが続く勉強会をつくる</p>
           <label class="field-label" for="node-text">考え</label>
@@ -113,6 +127,7 @@
 </div>
 </fieldset>
           <p class="source-label" id="node-source">自分の考え</p>
+          <div class="line-color-field"><label class="field-label" id="line-color-label" for="line-color">この考えにつながる線の色</label><input id="line-color" type="color" value="#4f7d62"><div id="line-swatches" class="line-swatches" aria-label="線の色の候補"></div><p class="muted small">色の意味は自由。採用・保留の判断とは別です。</p></div>
           <button class="button mobile-only full" id="mobile-sibling">同じ階層に考えを足す</button>
           <button class="button mobile-only full" id="editor-undo" disabled>元に戻す</button>
           <details class="branch-options">
@@ -195,7 +210,7 @@
 </section>
 </div>
 <section class="pending-section">
-<h3>まだツリーに入っていない案 <span id="proposal-count">
+<h3 id="proposal-list-title" tabindex="-1">まだツリーに入っていない案 <span id="proposal-count">
 </span>
 </h3>
 <p class="muted small">「採用して追加」を押した案だけ、ツリーに入ります。文章は追加後に編集できます。</p>
@@ -221,16 +236,31 @@
 <button class="icon-button" data-close aria-label="閉じる">×</button>
 </div>
 <h3>考えを枝分かれさせる</h3>
-<p>枝を選び「この先に考えを足す」で具体化。「同じ階層に足す」で別の見方を並べます。考えとメモは入力すると自動で保存されます。</p>
+<p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
+<h3>ボードを動かす</h3>
+<p>カードや余白をドラッグして移動できます。ホイールは表示範囲の移動、Ctrl＋ホイール・二本指のピンチ・画面下の＋／−はボードの拡大縮小です。「全体を見る」で俯瞰でき、小さいカードを選ぶと拡大します。「一覧で読む」で階層順にも読めます。</p>
+<h3>色と枠で分類する</h3>
+<p>カードを選んで編集欄を開くと、元からつながる線の色を変えられます。「分類枠で囲む」で選んだ枝全体を囲み、名前を付けます。別々のカードを囲むなら「複数選択」を有効にして選びます。PCではShiftを押して追加選択もできます。</p>
+<p>枠の見出しをドラッグすると中身も移動し、右下のつまみでサイズを変えると完全に囲まれたカードが中に入ります。枠だけを外してもカードは消えません。枠は分類、線は派生元を表し、採用・保留の判断とは独立しています。</p>
 <h3>自分で決める</h3>
 <p>採用・保留・見送りは、あとから何度でも変えられます。整理や削除は「元に戻す」で取り消せます。</p>
 <h3>保存先は、このブラウザ</h3>
 <p>アカウントやクラウド保存はありません。ブラウザのデータ削除やプライベートモードでは失われるため、定期的に「ノートを書き出す」でファイルを保存してください。読み込みは既存ノートを消さず、別のノートとして追加します。</p>
 <h3>キーボード</h3>
-<p>ツリーの枝にフォーカスして、↑↓で移動、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeでツリー以外の操作へ戻れます。</p>
+<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。枠の右下は矢印キーでサイズ変更。F2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
 <h3>AIについて</h3>
 <p>AIの契約はこのアプリに含まれません。渡した内容には、利用するAIサービスのデータ取り扱いが適用されます。AIを使わずにノートだけでも使えます。</p>
 </dialog>
+  <dialog id="frame-dialog" aria-labelledby="frame-dialog-title">
+    <form id="frame-form">
+      <div class="dialog-heading"><h2 id="frame-dialog-title">分類枠を編集</h2><button type="button" class="icon-button" data-close aria-label="閉じる">×</button></div>
+      <label class="field-label" for="frame-name">分類の名前</label><input id="frame-name" maxlength="80" required>
+      <label class="field-label" for="frame-color">枠の色</label><input id="frame-color" type="color" value="#4f7d62">
+      <p id="frame-members"></p><p class="muted small">右下のつまみで大きさを変えると、完全に囲まれたカードが中に入ります。枠を外してもカードや線は消えません。</p>
+      <p class="form-error" id="frame-error" role="alert"></p>
+      <div class="dialog-actions"><button type="button" class="button danger" id="delete-frame">枠だけ外す</button><button type="submit" class="button primary">変更を保存</button></div>
+    </form>
+  </dialog>
   <input id="file-input" type="file" accept=".json,application/json" hidden>
   <div class="toast" id="toast" role="status" hidden>
 </div>

@@ -1,5 +1,7 @@
 import { LIMITS, STATES, uid, clone, createNotebook, getNode, children, ancestors, subtree, visibleNodes, addNode, updateNode, moveNode, deleteBranch, validateWorkspace, parseJSON, stageProposals, approveProposal, dismissProposal, buildPrompt, importNotebooks } from './model.mjs';
 import { KEY, load, save } from './storage.mjs';
+import { initializeBoard, freePosition, moveCards, createFrame, moveFrame, resizeFrame, syncFrameMembership, setLineColor, PALETTE } from './board-model.mjs';
+import { BoardView } from './board-view.mjs';
 
 const $ = id => document.getElementById(id);
 let local;
@@ -7,12 +9,26 @@ try { local = window.localStorage; } catch { local = { getItem() { throw new Err
 const loaded = load(local);
 let workspace = loaded.workspace, savedRaw = loaded.raw, blocked = loaded.blocked, saveError = '', selectedId, focusId, invalidTitle = false;
 let saveQueued = false, saveTimer, saveAgain = false, sidebarReturn, editorReturn;
+let selectedIds = new Set(), selectedFrameId = null, multipleMode = false, viewMode = 'board', draft = null;
+let composingTarget = null;
 const compact = matchMedia('(max-width: 940px)');
 let entryParentId, entryMode, aiParentId, confirmCallback, toastTimer, editGroup = '', editTime = 0;
 const collapsed = new Set(), history = [];
 const book = () => workspace.notebooks.find(item => item.id === workspace.activeId);
 selectedId = book().rootId; focusId = book().rootId;
+selectedIds.add(selectedId);
 const activeNode = () => getNode(book(), selectedId) ?? getNode(book(), book().rootId);
+workspace.notebooks.forEach(initializeBoard);
+const boardView = new BoardView($('board'), {
+  stateLabel: state => STATES[state], select: selectBoardNode, add: beginDraft,
+  ready: editorReady, multiple: () => multipleMode,
+  frame: selectFrame, clearFrame: () => { selectedFrameId = null; renderBoardTools(); },
+  gesture: commitGesture, edge: id => { if (selectBoardNode(id)) { openEditor(); $('line-color').focus(); } },
+  edit: id => { if (selectBoardNode(id)) openEditor(); },
+  zoom: scale => { $('zoom-value').textContent = `${Math.round(scale * 100)}%`; },
+  escape: () => { cancelDraft(); multipleMode = false; selectedIds = new Set([selectedId]); selectedFrameId = null; renderTree(); $('view-toggle').focus(); },
+  commitDraft, cancelDraft, draftChanged: () => { $('save-status').textContent = '新しい考えを入力中（未確定）'; }
+});
 const pending = () => book().proposals.filter(p => ['pending', 'orphaned'].includes(p.status));
 function element(tag, className, value) { const node = document.createElement(tag); if (className) node.className = className; if (value !== undefined) node.textContent = value; return node; }
 function button(label, className, action) { const node = element('button', className, label); node.type = 'button'; node.addEventListener('click', action); return node; }
@@ -39,16 +55,22 @@ async function flushSave() {
     // revision check still detects a stale tab after it acquires the lock.
     if (navigator.locks?.request) await navigator.locks.request(KEY, { mode: 'exclusive' }, write);
     else write();
-    if (!blocked) { saveError = ''; $('save-status').textContent = invalidTitle ? '考えを入力してください' : saveTimer ? '保存待ち…' : 'このブラウザに保存済み'; $('notice').hidden = true; }
+    if (!blocked) { saveError = ''; $('save-status').textContent = draft ? '新しい考えを入力中（未確定）' : invalidTitle ? '考えを入力してください' : saveTimer ? '保存待ち…' : 'このブラウザに保存済み'; $('notice').hidden = true; }
   } catch (error) { saveError = error.message; $('save-status').textContent = '未保存・書き出しを'; notice(saveError); }
   finally { saveQueued = false; if (saveAgain) { saveAgain = false; persist(); } }
 }
+function compositionReady() {
+  if (!composingTarget) return true;
+  toast('文字の変換を確定してから操作してください。'); composingTarget.focus({ preventScroll: true }); return false;
+}
 function editorReady() {
+  if (!compositionReady()) return false;
+  if (draft && !commitDraft()) return false;
   if (!invalidTitle) return true;
   toast('考えを空欄にできません。文章を入力してください。'); openEditor(); return false;
 }
 function transaction(change, { group = '', inspector = true } = {}) {
-  const previous = clone(workspace), previousSelected = selectedId, previousFocus = focusId;
+  const previous = clone(workspace), previousSelected = selectedId, previousFocus = focusId, previousIds = new Set(selectedIds), previousFrame = selectedFrameId;
   try {
     const result = change(); validateWorkspace(workspace);
     book().updatedAt = new Date().toISOString();
@@ -57,27 +79,34 @@ function transaction(change, { group = '', inspector = true } = {}) {
       history.push({ workspace: previous, selectedId: previousSelected, focusId: previousFocus }); if (history.length > 40) history.shift();
     }
     editGroup = group; editTime = now; persist(); render(inspector); return { ok: true, result };
-  } catch (error) { workspace = previous; selectedId = previousSelected; focusId = previousFocus; toast(error.message); return { ok: false, error }; }
+  } catch (error) { workspace = previous; selectedId = previousSelected; focusId = previousFocus; selectedIds = previousIds; selectedFrameId = previousFrame; render(inspector); toast(error.message); return { ok: false, error }; }
 }
 function render(inspector = true) {
   if (!getNode(book(), selectedId)) selectedId = book().rootId;
   if (!getNode(book(), focusId)) focusId = book().rootId;
+  selectedIds = new Set([...selectedIds].filter(id => getNode(book(), id))); if (!selectedIds.size) selectedIds.add(selectedId);
+  if (!book().frames?.some(frame => frame.id === selectedFrameId)) selectedFrameId = null;
   renderNotebooks(); renderTree(); if (inspector) renderEditor(); renderProposals();
   $('undo').disabled = history.length === 0;
   $('editor-undo').disabled = history.length === 0;
   $('pending-count').hidden = pending().length === 0; $('pending-count').textContent = pending().length;
 }
 function renderNotebooks() {
+  const focusedId = $('notebooks').contains(document.activeElement) ? document.activeElement.dataset.notebookId : null;
   $('notebooks').replaceChildren(...workspace.notebooks.map(item => {
     const current = item.id === workspace.activeId;
     const node = button(getNode(item, item.rootId).text, `notebook${current ? ' is-current' : ''}`, () => {
       if (!editorReady()) return;
-      workspace.activeId = item.id; selectedId = item.rootId; focusId = item.rootId; editGroup = ''; persist(); render(); closeSidebar();
+      workspace.activeId = item.id; selectedId = item.rootId; selectedIds = new Set([selectedId]); selectedFrameId = null; focusId = item.rootId; editGroup = ''; persist(); render(); closeSidebar();
     });
+    node.dataset.notebookId = item.id;
     if (current) node.setAttribute('aria-current', 'page'); return node;
   }));
+  if (focusedId) ([...$('notebooks').children].find(node => node.dataset.notebookId === focusedId) ?? $('new-notebook')).focus({ preventScroll: true });
 }
 function renderTree() {
+  const outlineFocusedId = $('outline').contains(document.activeElement) ? document.activeElement.closest('.tree-row')?.dataset.nodeId : null;
+  const pathFocused = $('focus-path').contains(document.activeElement);
   const root = getNode(book(), book().rootId);
   $('notebook-title').textContent = root.text; $('notebook-note').textContent = root.note; $('notebook-note').hidden = !root.note;
   document.title = `${root.text} — 思考の芽`;
@@ -102,23 +131,34 @@ function renderTree() {
     row.addEventListener('keydown', treeKeydown); fragment.append(row);
   }
   $('outline').replaceChildren(fragment);
+  initializeBoard(book()); boardView.render(book(), rows, selectedIds, selectedFrameId); renderBoardTools();
   $('collapse-all').textContent = collapsed.size ? '枝をひらく' : '枝をたたむ';
   $('focus-path').hidden = focusId === book().rootId;
-  $('focus-path').replaceChildren(button('← ノート全体へ戻る', '', () => { focusId = book().rootId; renderTree(); }));
-  $('add-sibling').disabled = activeNode().parentId === null;
+  $('focus-path').replaceChildren(button('← ノート全体へ戻る', '', () => { if (!editorReady()) return; focusId = book().rootId; renderTree(); }));
+  $('add-sibling').disabled = activeNode().parentId === null || Boolean(selectedFrameId) || selectedIds.size !== 1;
+  if (pathFocused) { if ($('focus-path').hidden) focusRow(); else $('focus-path').firstElementChild.focus({ preventScroll: true }); }
+  else if (outlineFocusedId) {
+    const replacement = [...$('outline').children].find(node => node.dataset.nodeId === outlineFocusedId);
+    if (replacement && viewMode === 'outline') replacement.focus({ preventScroll: true }); else focusRow();
+  }
 }
 function selectNode(id, focus = true) {
   if (!editorReady()) return false;
-  selectedId = id; editGroup = ''; renderTree(); renderEditor(); if (focus) focusRow(); return true;
+  selectedId = id; selectedIds = new Set([id]); selectedFrameId = null; editGroup = ''; renderTree(); renderEditor(); if (focus) focusRow(); return true;
 }
-function focusRow() { const row = [...$('outline').children].find(node => node.dataset.nodeId === selectedId); row?.focus({ preventScroll: true }); row?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+function focusRow() {
+  if (viewMode === 'board') { boardView.reveal(selectedId, true); return; }
+  const row = [...$('outline').children].find(node => node.dataset.nodeId === selectedId); row?.focus({ preventScroll: true }); row?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
 function toggleBranch(id) {
   if (!editorReady()) return;
   if (collapsed.has(id)) collapsed.delete(id);
-  else { collapsed.add(id); if (subtree(book(), id).some(node => node.id === selectedId)) selectedId = id; }
+  else { collapsed.add(id); if (subtree(book(), id).some(node => node.id === selectedId)) { selectedId = id; selectedIds = new Set([id]); selectedFrameId = null; } }
   renderTree(); renderEditor(); focusRow();
 }
 function renderEditor() {
+  if (selectedFrameId || selectedIds.size !== 1) { closeEditor(false); $('inspector').inert = true; return; }
+  $('inspector').inert = false;
   const node = activeNode();
   $('node-text').value = node.text; $('node-note').value = node.note; invalidTitle = false;
   $('breadcrumb').textContent = ancestors(book(), selectedId).map(part => part.text).join(' › ');
@@ -129,6 +169,9 @@ function renderEditor() {
   $('indent').disabled = isRoot || index === 0; $('outdent').disabled = isRoot || getNode(book(), node.parentId)?.parentId === null;
   $('delete-node').textContent = isRoot ? 'このノートを削除' : 'この枝を削除';
   $('mobile-sibling').disabled = isRoot;
+  $('line-color').value = node.lineColor ?? PALETTE[0][0]; $('line-color').disabled = isRoot;
+  $('line-color-label').textContent = isRoot ? '最初の考えには元の線がありません' : 'この考えにつながる線の色';
+  for (const swatch of $('line-swatches').children) { swatch.disabled = isRoot; swatch.setAttribute('aria-pressed', String(swatch.dataset.color === node.lineColor)); }
 }
 function setEditorModal(enabled) {
   for (const target of [document.querySelector('.topbar'), document.querySelector('.paper'), document.querySelector('.mobile-actions'), $('notice'), $('sidebar')]) target.inert = enabled;
@@ -136,12 +179,13 @@ function setEditorModal(enabled) {
   else { $('inspector').removeAttribute('role'); $('inspector').removeAttribute('aria-modal'); }
 }
 function openEditor() {
+  if (selectedFrameId || selectedIds.size !== 1) return;
   if (!$('inspector').classList.contains('is-open')) editorReturn = document.activeElement;
   $('inspector').classList.add('is-open'); setEditorModal(compact.matches); $('node-text').focus();
 }
 function closeEditor(restore = true) {
   const wasOpen = $('inspector').classList.contains('is-open'); $('inspector').classList.remove('is-open'); setEditorModal(false);
-  if (restore && wasOpen && compact.matches) (editorReturn?.isConnected && editorReturn.getClientRects().length ? editorReturn : $('mobile-edit')).focus();
+  if (restore && wasOpen) (editorReturn?.isConnected && editorReturn.getClientRects().length ? editorReturn : compact.matches ? $('mobile-edit') : $('board-edit')).focus();
 }
 function trapFocus(event, container) {
   if (event.key !== 'Tab') return;
@@ -177,6 +221,7 @@ $('entry-form').addEventListener('submit', event => {
       if (workspace.notebooks.length >= LIMITS.notebooks) throw new Error(`保存できるノートは${LIMITS.notebooks}冊までです。`);
       const added = createNotebook($('entry-text').value.trim(), $('entry-note').value); workspace.notebooks.push(added); workspace.activeId = added.id; selectedId = added.rootId; focusId = added.rootId;
     } else { selectedId = addNode(book(), entryParentId, $('entry-text').value, $('entry-note').value).id; ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); }
+    selectedIds = new Set([selectedId]); selectedFrameId = null;
   });
   if (outcome.ok) { $('entry-dialog').close(); closeSidebar(false); closeEditor(false); focusRow(); toast('考えを追加しました'); } else $('entry-error').textContent = outcome.error.message;
 });
@@ -201,6 +246,14 @@ function editNode(event) {
   } catch (error) { toast(error.message); }
 }
 for (const id of ['node-text', 'node-note']) { $(id).addEventListener('input', editNode); $(id).addEventListener('compositionend', editNode); }
+document.addEventListener('compositionstart', event => {
+  if (event.target.matches('#node-text, #node-note, .draft-input')) composingTarget = event.target;
+}, true);
+document.addEventListener('compositionend', event => {
+  if (event.target !== composingTarget) return;
+  composingTarget = null;
+  if (draft && event.target.classList.contains('draft-input')) draft.text = event.target.value;
+}, true);
 for (const b of $('state-buttons').querySelectorAll('button')) b.addEventListener('click', () => { if (editorReady()) transaction(() => updateNode(book(), selectedId, { state: b.dataset.state })); });
 function move(action) { if (!editorReady()) return; if (transaction(() => moveNode(book(), selectedId, action)).ok) { ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); focusId = book().rootId; renderTree(); focusRow(); } }
 for (const [id, action] of [['move-up', 'up'], ['move-down', 'down'], ['indent', 'indent'], ['outdent', 'outdent']]) $(id).addEventListener('click', () => move(action));
@@ -218,37 +271,43 @@ $('delete-node').addEventListener('click', () => {
   });
 });
 $('undo').addEventListener('click', () => {
+  if (!compositionReady()) return;
+  if (draft) { cancelDraft(); return; }
   if (invalidTitle) { renderEditor(); $('undo').disabled = history.length === 0; $('editor-undo').disabled = history.length === 0; $('save-status').textContent = '空欄の編集を取り消しました'; return; }
   const previous = history.pop(); if (!previous) return;
-  workspace = previous.workspace; selectedId = previous.selectedId; focusId = previous.focusId; editGroup = ''; ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); persist(); render(); toast('一つ前の状態に戻しました');
+  workspace = previous.workspace; selectedId = previous.selectedId; selectedIds = new Set([selectedId]); selectedFrameId = null; focusId = previous.focusId; editGroup = ''; ancestors(book(), selectedId).forEach(node => collapsed.delete(node.id)); persist(); render(); toast('一つ前の状態に戻しました');
 });
 $('editor-undo').addEventListener('click', () => $('undo').click());
 $('focus-branch').addEventListener('click', () => { if (!editorReady()) return; focusId = selectedId; collapsed.delete(selectedId); closeEditor(); renderTree(); });
-$('collapse-all').addEventListener('click', () => { if (!editorReady()) return; if (collapsed.size) collapsed.clear(); else { book().nodes.forEach(node => { if (children(book(), node.id).length) collapsed.add(node.id); }); selectedId = focusId; } renderTree(); renderEditor(); });
-for (const id of ['add-child', 'mobile-add']) $(id).addEventListener('click', () => openEntry('child'));
+$('collapse-all').addEventListener('click', () => { if (!editorReady()) return; if (collapsed.size) collapsed.clear(); else { book().nodes.forEach(node => { if (children(book(), node.id).length) collapsed.add(node.id); }); selectedId = focusId; selectedIds = new Set([selectedId]); selectedFrameId = null; } renderTree(); renderEditor(); });
+for (const id of ['add-child', 'mobile-add']) $(id).addEventListener('click', () => viewMode === 'board' ? beginDraft(selectedId, 'right') : openEntry('child'));
 $('add-sibling').addEventListener('click', () => openEntry('sibling')); $('new-notebook').addEventListener('click', () => openEntry('notebook'));
 $('mobile-sibling').addEventListener('click', () => openEntry('sibling'));
-$('mobile-edit').addEventListener('click', openEditor); $('close-inspector').addEventListener('click', () => { if (editorReady()) closeEditor(); });
+$('mobile-edit').addEventListener('click', () => { if (!editorReady()) return; if (selectedFrameId) selectFrame(selectedFrameId, true); else openEditor(); }); $('close-inspector').addEventListener('click', () => { if (editorReady()) closeEditor(); });
 function closeSidebar(restore = true) {
   const wasOpen = $('sidebar').classList.contains('is-open'); $('sidebar').classList.remove('is-open'); $('sidebar-shade').hidden = true;
   document.querySelector('.main').inert = false; $('sidebar').removeAttribute('role'); $('sidebar').removeAttribute('aria-modal');
   if (restore && wasOpen && compact.matches) (sidebarReturn?.isConnected ? sidebarReturn : $('open-sidebar')).focus();
 }
 $('open-sidebar').addEventListener('click', () => {
+  if (!editorReady()) return;
   sidebarReturn = document.activeElement; $('sidebar').classList.add('is-open'); $('sidebar-shade').hidden = false;
   document.querySelector('.main').inert = true; $('sidebar').setAttribute('role', 'dialog'); $('sidebar').setAttribute('aria-modal', 'true'); $('close-sidebar').focus();
 });
 $('close-sidebar').addEventListener('click', () => closeSidebar()); $('sidebar-shade').addEventListener('click', () => closeSidebar());
-$('open-help').addEventListener('click', () => $('help-dialog').showModal());
+$('open-help').addEventListener('click', () => { if (editorReady()) $('help-dialog').showModal(); });
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 document.addEventListener('keydown', event => {
+  if (event.isComposing || composingTarget) return;
   if (document.querySelector('dialog[open]')) return;
   if (event.key === 'Escape') { closeSidebar(); if (editorReady()) closeEditor(); }
   if (compact.matches && $('sidebar').classList.contains('is-open')) trapFocus(event, $('sidebar'));
   else if (compact.matches && $('inspector').classList.contains('is-open')) trapFocus(event, $('inspector'));
 });
-compact.addEventListener('change', () => { if (!compact.matches) { closeSidebar(false); closeEditor(false); } });
+compact.addEventListener('change', () => { if (composingTarget) { setEditorModal(compact.matches && $('inspector').classList.contains('is-open')); return; } if (!compact.matches) { closeSidebar(false); closeEditor(false); } });
 function exportAll() {
+  if (!compositionReady()) return;
+  if (draft && !commitDraft()) return;
   const data = JSON.stringify(workspace, null, 2), blob = new Blob([data], { type: 'application/json' }), url = URL.createObjectURL(blob);
   const link = element('a'); link.href = url; link.download = `think-tree-${new Date().toISOString().slice(0, 10)}.json`; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
   toast(invalidTitle ? '最後に入力が確定した内容を書き出しました' : 'ノートのファイルを書き出しました');
@@ -279,6 +338,7 @@ $('copy-prompt').addEventListener('click', async () => {
   catch { $('prompt-preview').closest('details').open = true; $('prompt-preview').focus(); $('prompt-preview').select(); toast('コピーできなかったため文章を選択しました。手動でコピーしてください'); }
 });
 function receiveProposals(payload) {
+  if (composingTarget || draft || invalidTitle) throw new Error('入力中の考えを確定してから、案を受け取ってください。');
   const result = transaction(() => stageProposals(book(), payload), { inspector: false });
   if (!result.ok) throw result.error;
   return result.result.length;
@@ -293,26 +353,154 @@ $('sample-proposals').addEventListener('click', () => {
   $('proposal-error').textContent = ''; $('proposal-input').focus(); toast('固定サンプルを入れました。「内容を確認する」で試せます');
 });
 function renderProposals() {
+  const focused = $('proposals').contains(document.activeElement) ? document.activeElement : null;
+  const focusedCard = focused?.closest('.proposal-card');
+  const focusedIndex = focusedCard ? [...$('proposals').children].indexOf(focusedCard) : -1;
+  const restoreProposalFocus = () => {
+    if (!focusedCard) return;
+    const cards = [...$('proposals').querySelectorAll('.proposal-card')];
+    const card = cards.find(node => node.dataset.proposalId === focusedCard.dataset.proposalId) ?? cards[Math.min(focusedIndex, cards.length - 1)];
+    const equivalent = card ? [...card.querySelectorAll('button:not(:disabled)')].find(node => node.dataset.action === focused.dataset.action) : null;
+    (equivalent ?? card?.querySelector('button:not(:disabled)') ?? $('proposal-list-title')).focus({ preventScroll: true });
+  };
   const items = pending(); $('proposal-count').textContent = `（${items.length}）`;
-  if (!items.length) { $('proposals').replaceChildren(element('p', 'empty-message', '受け取った案はここに並びます。')); return; }
+  if (!items.length) { $('proposals').replaceChildren(element('p', 'empty-message', '受け取った案はここに並びます。')); restoreProposalFocus(); return; }
   $('proposals').replaceChildren(...items.map(p => {
-    const card = element('article', 'proposal-card');
+    const card = element('article', 'proposal-card'); card.dataset.proposalId = p.id;
     card.append(element('p', 'proposal-meta', p.status === 'orphaned' ? '追加先の枝が削除されています' : `追加先：${getNode(book(), p.parentId)?.text}`));
     card.append(element('h4', '', p.text)); if (p.note) card.append(element('p', 'proposal-note', p.note));
     const actions = element('div', 'proposal-actions');
     const approve = button('採用して追加', 'button primary', () => {
-      const result = transaction(() => { const node = approveProposal(book(), p.id); selectedId = node.id; ancestors(book(), selectedId).forEach(part => collapsed.delete(part.id)); focusId = book().rootId; });
+      const result = transaction(() => { const node = approveProposal(book(), p.id); selectedId = node.id; selectedIds = new Set([selectedId]); selectedFrameId = null; ancestors(book(), selectedId).forEach(part => collapsed.delete(part.id)); focusId = book().rootId; });
       if (result.ok) toast('ツリーに追加しました。あとから編集・取り消しできます');
-    }); approve.disabled = p.status === 'orphaned';
-    actions.append(approve, button('見送る', 'button', () => { if (transaction(() => dismissProposal(book(), p.id)).ok) toast('この案を見送りました。「元に戻す」で戻せます'); })); card.append(actions); return card;
+    }); approve.disabled = p.status === 'orphaned'; approve.dataset.action = 'approve';
+    const dismiss = button('見送る', 'button', () => { if (transaction(() => dismissProposal(book(), p.id)).ok) toast('この案を見送りました。「元に戻す」で戻せます'); }); dismiss.dataset.action = 'dismiss';
+    actions.append(approve, dismiss); card.append(actions); return card;
   }));
+  restoreProposalFocus();
 }
 window.addEventListener('storage', event => {
   if (event.key !== KEY || event.newValue === savedRaw) return;
   blocked = true; saveError = '別のタブでノートが変更されました。いまの内容を書き出してから、ページを再読み込みしてください。'; notice(saveError); $('save-status').textContent = '別タブで変更あり';
 });
-window.addEventListener('beforeunload', event => { if (saveTimer || saveQueued || invalidTitle || saveError || blocked && history.length) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if (composingTarget || draft?.text?.trim() || saveTimer || saveQueued || invalidTitle || saveError || blocked && history.length) { event.preventDefault(); event.returnValue = ''; } });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveTimer) flushSave(); });
+
+function renderBoardTools() {
+  const frame = book().frames?.find(item => item.id === selectedFrameId);
+  $('board-selection').textContent = frame ? `分類：${frame.title}` : selectedIds.size > 1 ? `${selectedIds.size}個を選択` : matchMedia('(pointer: coarse)').matches ? 'ダブルタップで枝を追加' : 'カードの端から枝を追加';
+  $('board-edit').textContent = frame ? '枠を編集' : '考えを編集';
+  $('board-edit').disabled = !frame && selectedIds.size !== 1;
+  $('multi-select').setAttribute('aria-pressed', String(multipleMode));
+  $('multi-select').textContent = multipleMode ? '複数選択を終了' : '複数選択';
+  $('view-toggle').textContent = viewMode === 'board' ? '一覧で読む' : 'ボードへ戻る';
+  $('view-toggle').setAttribute('aria-pressed', String(viewMode === 'outline'));
+  $('board').hidden = viewMode !== 'board'; $('outline').hidden = viewMode !== 'outline';
+  $('board-navigation').hidden = viewMode !== 'board'; $('board-actions').hidden = viewMode !== 'board';
+  $('new-frame').disabled = Boolean(frame) || !selectedIds.size;
+  $('open-ai').disabled = Boolean(frame) || selectedIds.size !== 1;
+  $('add-child').disabled = Boolean(frame) || selectedIds.size !== 1;
+  $('mobile-add').disabled = Boolean(frame) || selectedIds.size !== 1;
+  $('mobile-edit').textContent = frame ? '枠を編集' : '編集する';
+  $('mobile-edit').disabled = !frame && selectedIds.size !== 1;
+  $('multi-select').hidden = viewMode !== 'board'; $('new-frame').hidden = viewMode !== 'board';
+}
+function selectBoardNode(id, additive = false) {
+  if (!editorReady() || !getNode(book(), id)) return false;
+  if (additive || multipleMode) { if (selectedIds.has(id) && selectedIds.size > 1) selectedIds.delete(id); else selectedIds.add(id); }
+  else selectedIds = new Set([id]);
+  selectedId = selectedIds.has(id) ? id : [...selectedIds].at(-1); selectedFrameId = null; editGroup = '';
+  renderTree(); renderEditor();
+  if (boardView.view.scale < .7) boardView.reveal(selectedId);
+  return true;
+}
+function beginDraft(parentId, side) {
+  if (!editorReady()) return;
+  try {
+    if (book().nodes.length >= LIMITS.nodes) throw new Error(`1冊に追加できる考えは${LIMITS.nodes}個までです。`);
+    if (ancestors(book(), parentId).length >= LIMITS.depth) throw new Error(`枝は${LIMITS.depth}段までです。`);
+    const position = freePosition(book(), parentId, side);
+    closeEditor(false); multipleMode = false; selectedIds = new Set([parentId]); selectedId = parentId; selectedFrameId = null;
+    ancestors(book(), parentId).forEach(node => collapsed.delete(node.id)); collapsed.delete(parentId); renderTree(); renderEditor();
+    draft = { parentId, notebookId: book().id, side, position, text: '' }; boardView.showDraft(draft);
+    $('undo').disabled = false; $('save-status').textContent = '新しい考えを入力中（未確定）';
+  } catch (error) { toast(error.message); }
+}
+function commitDraft() {
+  if (!compositionReady()) return false;
+  if (!draft) return true;
+  if (!draft.text?.trim()) { cancelDraft(); return true; }
+  const pendingDraft = draft;
+  if (pendingDraft.notebookId !== book().id) { toast('元のノートに戻って入力を確定してください。'); return false; }
+  draft = null; boardView.removeDraft();
+  const result = transaction(() => {
+    const node = addNode(book(), pendingDraft.parentId, pendingDraft.text);
+    node.position = pendingDraft.position; node.branchSide = pendingDraft.side;
+    selectedId = node.id; selectedIds = new Set([node.id]); syncFrameMembership(book());
+  });
+  if (!result.ok) { draft = pendingDraft; boardView.showDraft(draft); return false; }
+  boardView.cardElements.get(selectedId)?.querySelector('.card-body').focus({ preventScroll: true });
+  toast('枝を追加しました'); return true;
+}
+function cancelDraft() {
+  if (!compositionReady()) return;
+  if (!draft) return;
+  const parentId = draft.parentId; draft = null; boardView.removeDraft(); renderTree();
+  boardView.cardElements.get(parentId)?.querySelector('.card-body').focus({ preventScroll: true });
+  $('undo').disabled = !history.length;
+  $('save-status').textContent = blocked || saveError ? '未保存・書き出しを' : saveTimer || saveQueued ? '保存待ち…' : 'このブラウザに保存済み';
+}
+function commitGesture(gesture) {
+  if (!editorReady()) return;
+  const result = transaction(() => {
+    if (gesture.type === 'cards') moveCards(book(), gesture.ids, gesture.dx, gesture.dy);
+    else if (gesture.type === 'frame') moveFrame(book(), gesture.frameId, gesture.dx, gesture.dy);
+    else if (gesture.type === 'resize') resizeFrame(book(), gesture.frameId, gesture.width, gesture.height);
+    syncFrameMembership(book());
+  }, { inspector: false });
+  if (result.ok) $('board-status').textContent = gesture.type === 'resize' ? '分類枠の大きさを変更しました' : '位置を変更しました';
+}
+function selectFrame(id, edit = false) {
+  if (!editorReady()) return;
+  const frame = book().frames?.find(item => item.id === id); if (!frame) return;
+  selectedFrameId = id; selectedIds = new Set(frame.nodeIds); if (frame.nodeIds.length) selectedId = frame.nodeIds[0];
+  renderTree(); renderEditor();
+  if (edit) {
+    $('frame-name').value = frame.title; $('frame-color').value = frame.color;
+    $('frame-members').textContent = `${frame.nodeIds.length}個のカードを囲んでいます。枠の見出しをドラッグすると中身も一緒に移動します。`;
+    $('frame-error').textContent = ''; $('frame-dialog').showModal(); $('frame-name').focus();
+  }
+}
+$('frame-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const result = transaction(() => { const frame = book().frames.find(item => item.id === selectedFrameId); if (!frame) throw new Error('分類枠が見つかりません。'); frame.title = $('frame-name').value.trim(); frame.color = $('frame-color').value; });
+  if (result.ok) { $('frame-dialog').close(); toast('分類枠を更新しました'); }
+  else $('frame-error').textContent = result.error.message;
+});
+$('delete-frame').addEventListener('click', () => {
+  const result = transaction(() => { book().frames = book().frames.filter(frame => frame.id !== selectedFrameId); selectedFrameId = null; selectedIds = new Set([selectedId]); });
+  if (result.ok) { $('frame-dialog').close(); toast('枠だけを外しました。カードと枝は残っています'); }
+});
+$('new-frame').addEventListener('click', () => {
+  if (!editorReady()) return;
+  const ids = multipleMode || selectedIds.size > 1 ? [...selectedIds] : subtree(book(), selectedId).map(node => node.id);
+  const result = transaction(() => { const frame = createFrame(book(), ids); syncFrameMembership(book()); selectedFrameId = frame.id; return frame.id; });
+  if (result.ok) selectFrame(result.result, true);
+});
+$('multi-select').addEventListener('click', () => { if (!editorReady()) return; multipleMode = !multipleMode; selectedFrameId = null; if (!multipleMode) selectedIds = new Set([selectedId]); renderTree(); });
+$('board-edit').addEventListener('click', () => { if (!editorReady()) return; if (selectedFrameId) selectFrame(selectedFrameId, true); else openEditor(); });
+$('view-toggle').addEventListener('click', () => {
+  if (!editorReady()) return; closeEditor(false); viewMode = viewMode === 'board' ? 'outline' : 'board'; multipleMode = false; selectedFrameId = null; selectedIds = new Set([selectedId]); renderTree();
+  if (viewMode === 'board') boardView.reveal(selectedId); else focusRow();
+});
+$('zoom-in').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1.2); });
+$('zoom-out').addEventListener('click', () => { if (editorReady()) boardView.zoomBy(1 / 1.2); });
+$('fit-board').addEventListener('click', () => { if (editorReady()) boardView.fit(); });
+$('line-color').addEventListener('change', () => { if (editorReady()) transaction(() => setLineColor(book(), [selectedId], $('line-color').value)); });
+for (const [value, name] of PALETTE) {
+  const swatch = button(name, 'color-swatch', () => { if (editorReady()) transaction(() => setLineColor(book(), selectedIds.size > 1 ? [...selectedIds] : [selectedId], value)); });
+  swatch.style.setProperty('--swatch', value); swatch.dataset.color = value; swatch.setAttribute('aria-label', `線の色を${name}にする`); $('line-swatches').append(swatch);
+}
 
 // Optional browser-native agent surface. No SDK, network, or auto-approval tool.
 function registerAgentTools() {

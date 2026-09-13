@@ -1,4 +1,5 @@
 // Shared, dependency-free domain logic. The UI applies changes in a transaction.
+import { validateBoard, initializeBoard, placeNode, createFrame, syncFrameMembership, PALETTE } from './board-model.mjs';
 export const LIMITS = Object.freeze({ notebooks: 30, nodes: 500, depth: 32, proposals: 200, title: 240, note: 4000, file: 4_000_000 });
 export const STATES = Object.freeze({ growing: '考え中', adopted: '採用', parked: '保留', rejected: '見送り' });
 const SOURCES = ['human', 'ai', 'mixed'];
@@ -55,7 +56,8 @@ export function addNode(book, parentId, title, note = '', source = 'human') {
   ensure(ancestors(book, parentId).length < LIMITS.depth, `枝の深さは${LIMITS.depth}段までです。別のノートに分けてください。`);
   text(title, LIMITS.title, '考え', true); text(note, LIMITS.note, 'メモ'); ensure(SOURCES.includes(source), '考えの出典が不正です。');
   const node = { id: uid(), parentId, text: title.trim(), note, state: 'growing', source, order: children(book, parentId).length };
-  book.nodes.push(node); return node;
+  if (getNode(book, parentId).position) placeNode(book, node, getNode(book, parentId).branchSide ?? 'right');
+  book.nodes.push(node); syncFrameMembership(book); return node;
 }
 export function updateNode(book, id, changes) {
   const node = getNode(book, id); ensure(node, '選んだ枝が見つかりません。');
@@ -88,6 +90,7 @@ export function deleteBranch(book, id) {
   ensure(id !== book.rootId, 'ノート全体の削除は、ノートのメニューから行ってください。');
   const ids = new Set(subtree(book, id).map(node => node.id)), parentId = getNode(book, id).parentId;
   book.nodes = book.nodes.filter(node => !ids.has(node.id));
+  for (const frame of book.frames ?? []) frame.nodeIds = frame.nodeIds.filter(nodeId => !ids.has(nodeId));
   book.proposals.forEach(proposal => { if (ids.has(proposal.parentId) && proposal.status === 'pending') proposal.status = 'orphaned'; });
   reorder(book, parentId); return parentId;
 }
@@ -116,7 +119,7 @@ export function validateNotebook(book) {
     proposalIds.add(p.id); text(p.text, LIMITS.title, '提案', true); text(p.note, LIMITS.note, '提案のメモ');
     ensure(p.status !== 'pending' || ids.has(p.parentId), '追加先がない提案が含まれています。');
   }
-  return book;
+  validateBoard(book); return book;
 }
 export function validateWorkspace(workspace) {
   ensure(isObject(workspace) && workspace.version === 1 && Array.isArray(workspace.notebooks), '対応していないノート形式です。');
@@ -133,6 +136,10 @@ export function sampleWorkspace() {
   const weekly = addNode(book, how.id, '週に一度、30分だけ集まる', '準備がいらない長さなら、自分も参加しやすい。'); weekly.state = 'adopted';
   const daily = addNode(book, how.id, '毎日進捗を投稿する', '義務になると疲れそう。まずは週1回で試したい。'); daily.state = 'parked';
   addNode(book, book.rootId, 'まず小さく試すには？', '2〜3人で一度やってみて、続けたいかを聞く。');
+  initializeBoard(book);
+  subtree(book, who.id).forEach(node => { node.lineColor = PALETTE[1][0]; });
+  subtree(book, how.id).forEach(node => { node.lineColor = PALETTE[2][0]; });
+  const frame = createFrame(book, subtree(book, how.id).map(node => node.id), '続けられる形'); frame.color = PALETTE[2][0];
   return { version: 1, activeId: book.id, notebooks: [book] };
 }
 export function parseJSON(raw, limit = LIMITS.file) {
@@ -196,6 +203,7 @@ export function importNotebooks(workspace, raw) {
     const book = clone(original), mapping = new Map(book.nodes.map(node => [node.id, uid()]));
     book.id = uid(); book.rootId = mapping.get(book.rootId); book.updatedAt = new Date().toISOString();
     book.nodes.forEach(node => { node.id = mapping.get(node.id); node.parentId = node.parentId === null ? null : mapping.get(node.parentId); });
+    if (book.frames) book.frames = book.frames.map(frame => ({ ...frame, id: uid(), nodeIds: frame.nodeIds.map(id => mapping.get(id)) }));
     book.proposals = book.proposals.filter(p => ['pending', 'orphaned'].includes(p.status)).map(p => ({ ...p, id: uid(), parentId: mapping.get(p.parentId) ?? uid() }));
     validateNotebook(book); return book;
   });
