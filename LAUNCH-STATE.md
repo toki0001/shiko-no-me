@@ -1,6 +1,16 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布 — 微調整ズーム版 / version 4（2026-09-13）
+## 現在の配布 — 戻す・やり直す版 / version 5（2026-09-13）
+
+- 公開URL・publicを維持し、`succeeded`（2026-09-13 14:59:33 UTC）。認証なしHTTP200でredoとhistory-controlsの新HTMLを取得。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
+- 配布コード: `9cda3fd36e2041a8162c5c50b713f8ed34459dbd`。両リモートへpushし、同じ資産12ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_81c70e3830388191b5e95e95c9ea94d9`。
+- Deployment: `appgdep_6aa6ba4b01b88191951e92fc52711c7e`。
+- 左上に←/→を追加。文章・カード/枠・表示位置の移動/ズームを直近40段階まで戻す/やり直す。新編集でredoを破棄。文章の履歴を短く区切る。共有デモは表示履歴のみ。
+- 全61テスト成功、独立コードレビュー重大0・残指摘0・PASS。新しい矢印の実画面/実機は未確認。提出URLとGitHub/サムネイルは変更なし。
+
+## 過去の配布 — 微調整ズーム版 / version 4（2026-09-13）
 
 - 公開URLと公開範囲publicを維持。最終状態 `succeeded`（2026-09-13 14:52:43 UTC）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
