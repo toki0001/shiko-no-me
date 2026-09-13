@@ -59,3 +59,16 @@ test('all direct application ID references have a matching DOM element', async (
   const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
   for (const match of code.matchAll(/\$\('([^']+)'\)/g)) assert(ids.has(match[1]), match[1]);
 });
+
+test('history stays on the working surface and notebook navigation ends the top bar', async () => {
+  const html = await readFile(path.join(root, 'dist/index.html'), 'utf8');
+  const header = html.match(/<header class="topbar">([\s\S]*?)<\/header>/)[1];
+  assert(!/id="(?:undo|redo)"/.test(header));
+  assert(header.indexOf('id="open-ai"') < header.indexOf('id="open-sidebar"'));
+  assert(header.includes('aria-controls="sidebar" aria-expanded="false"'));
+  const history = html.indexOf('class="history-controls"');
+  assert(history > html.indexOf('id="board"'));
+  assert(history < html.indexOf('id="board-navigation"'));
+  assert(html.includes('id="add-child"'));
+  assert(!html.includes('id="add-sibling"'));
+});

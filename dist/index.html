@@ -47,14 +47,13 @@
 </div>
     <main class="main">
       <header class="topbar">
-        <div class="history-controls" role="group" aria-label="操作の履歴"><button class="button" id="undo" aria-label="元に戻す" title="元に戻す（Ctrl / ⌘ + Z）" disabled>←</button><button class="button" id="redo" aria-label="やり直す" title="やり直す（Ctrl / ⌘ + Shift + Z）" disabled>→</button></div>
-        <button class="button" id="open-sidebar" aria-label="ノート一覧と操作メニュー">ノート</button>
         <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
         <span class="save-status" id="save-status" role="status">このブラウザに保存</span>
         <div class="top-actions">
 <button class="button ai-button" id="open-ai" aria-label="AIと考える">AI <span id="pending-count" hidden>
 </span>
 </button>
+<button class="button" id="open-sidebar" aria-label="ノート一覧と操作メニュー" aria-controls="sidebar" aria-expanded="false">ノート</button>
 </div>
       </header>
       <div class="notice" id="notice" role="alert" hidden>
@@ -68,9 +67,10 @@
           <div id="focus-path" class="focus-path" hidden>
 </div>
           <div id="board" class="board" role="region" aria-label="考えを広げるボード" aria-describedby="board-instructions" tabindex="0"></div>
+          <div class="history-controls" role="group" aria-label="操作の履歴"><button class="button" id="undo" aria-label="元に戻す" title="元に戻す（Ctrl / ⌘ + Z）" disabled>←</button><button class="button" id="redo" aria-label="やり直す" title="やり直す（Ctrl / ⌘ + Shift + Z）" disabled>→</button></div>
           <div class="board-navigation" id="board-navigation">
             <span id="board-instructions">余白をドラッグして移動。カードの端の＋で分岐。</span>
-            <div class="zoom-controls"><button id="zoom-out" aria-label="ボードを縮小">−</button><output id="zoom-value">100%</output><button id="zoom-in" aria-label="ボードを拡大">＋</button><button id="fit-board">全体を見る</button></div>
+            <div class="zoom-controls"><button id="zoom-out" aria-label="ボードを縮小">−</button><output id="zoom-value">100%</output><button id="zoom-in" aria-label="ボードを拡大">＋</button><button id="fit-board" aria-label="ボード全体を見る"><span class="fit-label-full">全体を見る</span><span class="fit-label-short" aria-hidden="true">全体</span></button></div>
           </div>
           <div class="sr-only" id="board-status" role="status"></div>
           <div id="shared-banner" class="shared-banner" hidden>
@@ -109,7 +109,6 @@
           <p class="keyboard-hint">カードの端の＋から、考えを広げる。</p>
           <div class="tree-actions">
 <button class="button primary" id="add-child">＋ この先に考えを足す</button>
-<button class="button" id="add-sibling">同じ階層に足す</button>
 </div>
         </section>
         <aside class="inspector" id="inspector" aria-label="選んだ考えを編集">
@@ -244,7 +243,7 @@
 <h3>考えを枝分かれさせる</h3>
 <p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
 <h3>ボードを動かす</h3>
-<p>カードや余白をドラッグして移動できます。ホイールはカーソルを中心に拡大縮小します。トラックパッドの二本指ピンチも、指の動きに合わせて細かく拡大縮小できます。右上の＋／−でも少しずつ調整できます。「全体を見る」で俯瞰でき、小さいカードを選ぶと拡大します。左上の「ノート」→「表示・整理」から「一覧で読む」に切り替えられます。</p>
+<p>カードや余白をドラッグして移動できます。ホイールはカーソルを中心に拡大縮小します。トラックパッドの二本指ピンチも、指の動きに合わせて細かく拡大縮小できます。右上の＋／−でも少しずつ調整できます。「全体を見る」で俯瞰でき、小さいカードを選ぶと拡大します。右上の「ノート」→「表示・整理」から「一覧で読む」に切り替えられます。</p>
 <h3>色と枠で分類する</h3>
 <p>カードを選んで編集欄を開くと、元からつながる線の色を変えられます。「分類枠で囲む」で選んだ枝全体を囲み、名前を付けます。別々のカードを囲むなら「複数選択」を有効にして選びます。PCではShiftを押して追加選択もできます。</p>
 <p>枠の見出しをドラッグすると中身も移動し、右下のつまみでサイズを変えると完全に囲まれたカードが中に入ります。枠だけを外してもカードは消えません。枠は分類、線は派生元を表し、採用・保留の判断とは独立しています。</p>

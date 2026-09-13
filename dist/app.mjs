@@ -391,8 +391,6 @@ function renderTree() {
       renderTree();
     }),
   );
-  $('add-sibling').disabled =
-    activeNode().parentId === null || Boolean(selectedFrameId) || selectedIds.size !== 1;
   if (pathFocused) {
     if ($('focus-path').hidden) focusRow();
     else $('focus-path').firstElementChild.focus({ preventScroll: true });
@@ -849,7 +847,6 @@ for (const id of ['add-child', 'mobile-add'])
   $(id).addEventListener('click', () =>
     viewMode === 'board' ? beginDraft(selectedId, 'right') : openEntry('child'),
   );
-$('add-sibling').addEventListener('click', () => openEntry('sibling'));
 $('new-notebook').addEventListener('click', () => openEntry('notebook'));
 $('mobile-sibling').addEventListener('click', () => openEntry('sibling'));
 $('mobile-edit').addEventListener('click', () => {
@@ -863,6 +860,7 @@ $('close-inspector').addEventListener('click', () => {
 function closeSidebar(restore = true) {
   const wasOpen = $('sidebar').classList.contains('is-open');
   $('sidebar').classList.remove('is-open');
+  $('open-sidebar').setAttribute('aria-expanded', 'false');
   $('sidebar-shade').hidden = true;
   document.querySelector('.main').inert = false;
   $('sidebar').removeAttribute('role');
@@ -873,6 +871,7 @@ $('open-sidebar').addEventListener('click', () => {
   if (!editorReady()) return;
   sidebarReturn = document.activeElement;
   $('sidebar').classList.add('is-open');
+  $('open-sidebar').setAttribute('aria-expanded', 'true');
   $('sidebar-shade').hidden = false;
   document.querySelector('.main').inert = true;
   $('sidebar').setAttribute('role', 'dialog');
