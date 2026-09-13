@@ -1,6 +1,24 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布 — ボード版 / version 2（2026-09-13）
+## 現在の配布 — ボード集中・企画デモ版 / version 3（2026-09-13）
+
+- 最終状態 `succeeded`（2026-09-13 14:46:20 UTC）。審査員や他ユーザーに体験してもらう本人の依頼に沿って、14:46:36 UTCに公開範囲をpublicへ変更。
+- アプリ: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
+- 企画デモ: https://shiko-no-me-notebook.tokkey20.chatgpt.site/?demo=origin
+- Public GitHub: https://github.com/toki0001/shiko-no-me
+- サムネイル: https://raw.githubusercontent.com/toki0001/shiko-no-me/main/thumbnail.jpg （リポジトリ直下、実画面JPEG）。
+- 配布コード: `75b6be65ee8c43f14acfe3be7d9fb26e26ae3c0b`。以後の状態記録は文書のみで、配布資産は変更しない。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_e9f8df193a1c8191bd27a4135eabc002`。
+- Deployment: `appgdep_6aa6b731d5a0819185d60098b74f375e`。
+- 同じソースをSites専用リポジトリとGitHubへpushし、静的資産とmanifestの11ファイルを梱包して配布。GitHub公開範囲はこのアプリだけで、親リポジトリや個人ノートは含めない。
+- 認証なしHTTP200で新CSSと共有中デモ文言を取得。サムネイルもHTTP200。公開ページでデモの順送り・読取専用メモを実クリック確認。既存Siteタブを再利用。
+- PC画面の約92%、スマホ幅では約93%をボードに変更。共有デモは25カード・6分類枠・7段階で本人の課題と選択を再構成し、補完した比較案は明記。
+- 一般のノートはブラウザ保存のまま。DB・3枠共有は本人の判断で今回は見送り、共有ボタンで未対応を明示する。固定デモをDB共有の実装済みと表現しない。
+- 54テスト成功。PC・390幅の実画面、作成・保存・再読込・AI承認と取り消し・デモコピーを確認。実機タッチ/IME/WebMCP呼出の契約テストは未確認。詳細QA.md。
+- GitHub Issuesへの入口を追加。公開投稿の注意あり。匿名受付・独自即時通知は未実装で、送信・通知受信テストも未実施。
+- 応募フォームの同意・送信は本タスクで行っていない。提出準備の別タスクへ確定URLを連絡済み。
+
+## 過去の配布 — ボード版 / version 2（2026-09-13）
 
 - 本人限定のまま更新。最終状態 `succeeded` を確認（2026-09-13 08:18:46 UTC）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
