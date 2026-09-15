@@ -1,6 +1,17 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：初期表示改善版 / version 7（2026-09-15）
+## 現在の配布：カード編集改善版 / version 8（2026-09-15）
+
+- 同じURL・publicを維持し、`succeeded`（2026-09-15 07:52:39 UTC / 16:52:39 JST）を確認。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
+- 配布コード: `1b9adcfc6dbd1fb541a150e09439be03ab3ccdf3`。GitHub/Sitesのmainへpush後、同じHEADから静的資産とmanifestの12ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_ee93325eed0c8191a5575db7c3d876de`。
+- Deployment: `appgdep_6aa8f93e8e448191a749702b15617320`。
+- 「選択中」の文字を削除。PCのダブルクリックで右側の閲覧/編集欄を開き、別カード単クリックで切替。パネル360px幅を予約し、ボードと同時操作。保存形式は維持。
+- 69テスト成功。ローカル1280pxで新規カード・編集・保存/再読込・切替・パネル独立スクロール・F2/閉じる、390pxで既存の下部編集欄と背景無効化を確認。共有デモのダブルクリックは25カードを保った読取専用。
+- 匿名HTTP200。公開HTML内の全style/script本文とapp.mjs/board-view.mjs/board.cssがローカルと一致（改行正規化。SitesがHTMLへ追加する部分は比較対象外）。公開版でダブルクリックによるパネル表示・選択文字0を実確認。実スマホタッチ・IMEは未確認。
+
+## 過去の配布：初期表示改善版 / version 7（2026-09-15）
 
 - 同じURL・publicを維持し、`succeeded`（2026-09-15 07:37:01 UTC / 16:37:01 JST）を確認。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
