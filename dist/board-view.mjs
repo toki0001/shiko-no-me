@@ -132,10 +132,11 @@ export class BoardView {
       const select = el('button', 'card-body');
       select.type = 'button';
       select.setAttribute('aria-label', `${node.text}、${this.callbacks.stateLabel(node.state)}`);
+      select.setAttribute('aria-pressed', String(selectedIds.has(node.id)));
+      select.title = 'ダブルクリックで内容を開く（F2でも編集）';
       select.append(el('span', 'card-text', node.text));
       const meta = el('span', 'card-meta');
       meta.append(el('span', 'card-state', this.callbacks.stateLabel(node.state)));
-      if (selectedIds.has(node.id)) meta.append(el('span', 'card-selected-label', '選択中'));
       select.append(meta);
       select.addEventListener('click', (event) => {
         if (event.detail === 0) this.callbacks.select(node.id, event.shiftKey);
@@ -446,18 +447,31 @@ export class BoardView {
       const previous = this.lastTap,
         now = performance.now();
       const double =
-        g.pointerType === 'touch' &&
-        !this.callbacks.readOnly?.() &&
+        !g.shiftKey &&
         !this.callbacks.multiple() &&
+        previous?.pointerType === g.pointerType &&
         previous?.id === g.cardId &&
-        now - previous.time < 340 &&
+        now - previous.time < (g.pointerType === 'touch' ? 340 : 500) &&
         Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24;
-      if (double) {
+      if (double && g.pointerType === 'mouse') {
+        // Selection rebuilds card DOM, so use the existing pointer gesture stream.
+        this.lastTap = null;
+        this.callbacks.edit(g.cardId);
+      } else if (double && g.pointerType === 'touch' && !this.callbacks.readOnly?.()) {
         this.lastTap = null;
         this.callbacks.add(g.cardId, 'right');
       } else {
-        this.callbacks.select(g.cardId, g.shiftKey);
-        this.lastTap = { id: g.cardId, time: now, x: event.clientX, y: event.clientY };
+        const selected = this.callbacks.select(g.cardId, g.shiftKey);
+        this.lastTap =
+          selected === false || g.shiftKey
+            ? null
+            : {
+                id: g.cardId,
+                pointerType: g.pointerType,
+                time: now,
+                x: event.clientX,
+                y: event.clientY,
+              };
       }
     } else {
       this.lastTap = null;

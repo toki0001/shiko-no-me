@@ -445,6 +445,12 @@ function renderEditor() {
   }
   $('inspector').inert = false;
   const node = activeNode();
+  if ($('inspector').dataset.nodeId !== node.id) {
+    $('inspector').scrollTop = 0;
+    $('node-text').scrollTop = 0;
+    $('node-note').scrollTop = 0;
+    $('inspector').dataset.nodeId = node.id;
+  }
   $('node-text').readOnly = readOnly;
   $('node-note').readOnly = readOnly;
   $('node-text').value = node.text;
@@ -920,6 +926,8 @@ compact.addEventListener('change', () => {
   if (!compact.matches) {
     closeSidebar();
     closeEditor();
+  } else {
+    setEditorModal($('inspector').classList.contains('is-open'));
   }
 });
 function exportAll() {
@@ -1181,7 +1189,7 @@ function selectBoardNode(id, additive = false) {
   editGroup = '';
   renderTree();
   renderEditor();
-  if (boardView.view.scale < 0.7) boardView.reveal(selectedId);
+  if (compact.matches && boardView.view.scale < 0.7) boardView.reveal(selectedId);
   return true;
 }
 function beginDraft(parentId, side) {

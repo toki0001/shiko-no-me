@@ -338,6 +338,7 @@ function gestureHarness() {
     dragFrame: null,
     callbacks: {
       select: (id) => calls.push(['select', id]),
+      edit: (id) => calls.push(['edit', id]),
       add: (id, side) => calls.push(['add', id, side]),
       multiple: () => false,
       gesture: (g) => calls.push(['move', g.type]),
