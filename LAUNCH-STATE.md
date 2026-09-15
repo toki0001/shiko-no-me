@@ -1,6 +1,18 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：操作の配置修正版 / version 6（2026-09-14）
+## 現在の配布：初期表示改善版 / version 7（2026-09-15）
+
+- 同じURL・publicを維持し、`succeeded`（2026-09-15 07:37:01 UTC / 16:37:01 JST）を確認。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
+- 配布コード: `fed254aeaad0003fb2bb7059b4d5e98d4f5c01c9`。GitHub/Sitesへpush後、静的資産とmanifestの12ファイルを同じ状態から配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_f3ac7657e53c8191a242483e143603bc`。
+- Deployment: `appgdep_6aa8f580fc3081919d861824cbd15384`。
+- CSS3本と起動JSを配布HTMLにまとめ、依存6モジュールを先読み。src/index.htmlからNode標準機能だけで生成。CSS/JSの処理と保存形式・共有デモは変更なし。
+- 65テスト成功、独立コードレビューPASS。匿名HTTP200・インラインCSS/JSの配布一致を確認。
+- 公開デモのFCPは再計測2回で260/220ms。変更前は4744/5420msだが、初期応答時間も変動しており全差分を修正効果とは断定しない。条件と限界はPERFORMANCE.md。
+- ローカルPC画面と公開デモ25カード・順送り/逆送りを確認。実スマホ・低速回線は未検証。
+
+## 過去の配布：操作の配置修正版 / version 6（2026-09-14）
 
 - 本人の「公開サイトにも反映する」という返答を受け、同じURL・publicのまま更新。`succeeded`（2026-09-13 15:24:44 UTC、9月14日00:24:44 JST）を確認。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
