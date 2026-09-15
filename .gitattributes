@@ -1,3 +1,5 @@
 # Keep JavaScript consistent with Prettier on Windows and Unix checkouts.
 *.mjs text eol=lf
 .prettierrc.json text eol=lf
+src/index.html text eol=lf
+dist/index.html text eol=lf

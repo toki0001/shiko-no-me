@@ -31,6 +31,7 @@ AIの提案も、受け取りだけでは本体に入りません。
 アプリ実行用の外部パッケージをインストールする必要はありません。
 
 ```sh
+npm run build
 npm test
 npm run dev
 ```
@@ -53,7 +54,9 @@ JavaScriptの改行は [.gitattributes](.gitattributes) でLFにそろえ、Wind
 
 ## 公開版と履歴
 
-`dist/` は直接編集する公開ソースです。
+HTMLは `src/index.html`、CSSとJavaScriptは `dist/*.css` / `dist/*.mjs` を編集し、`npm run build` で配布用の `dist/index.html` を更新します。
+初期表示を速めるためCSSと起動コードをHTMLへまとめますが、元ファイルの処理やスタイルの順序は変えません。
+生成物の古さはテストで検出します。`dist/index.html` を直接編集せず、整形後も再生成してください。
 画像、CSS、HTML、JavaScriptだけで動き、ローカルの `server.mjs` は開発用です。
 公開URLと配布したコードの対応は [LAUNCH-STATE.md](LAUNCH-STATE.md) に記録します。
 ノート本文や秘密情報をGitHubへ追加しないでください。

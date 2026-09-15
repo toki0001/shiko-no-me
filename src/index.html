@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="考えを枝分かれさせて深める思考ノート。自分で書き、必要なときだけAIの提案を取り込めます。">
+  <meta name="theme-color" content="#f5f6f2">
+  <title>思考の芽 — 思考ノート</title>
+  <!-- build:styles -->
+  <link rel="modulepreload" href="./model.mjs">
+  <link rel="modulepreload" href="./storage.mjs">
+  <link rel="modulepreload" href="./board-model.mjs">
+  <link rel="modulepreload" href="./board-view.mjs">
+  <link rel="modulepreload" href="./story.mjs">
+  <link rel="modulepreload" href="./history.mjs">
+</head>
+<body>
+  <a class="skip-link" href="#board">思考ボードへ</a>
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="ノート一覧">
+      <div class="brand">
+<span class="brand-mark" aria-hidden="true">芽</span>
+<strong>思考の芽</strong>
+<button class="icon-button" id="close-sidebar" aria-label="ノート一覧を閉じる">×</button>
+</div>
+      <div class="side-heading">
+<h2>ノート</h2>
+<button class="icon-button" id="new-notebook" title="新しいノート" aria-label="新しいノート">＋</button>
+</div>
+      <nav id="notebooks" aria-label="ノートを選ぶ">
+<button class="notebook is-current">学びが続く勉強会をつくる</button>
+</nav>
+      <details class="board-menu"><summary>表示・整理</summary>
+        <div class="outline-tools"><span id="tree-summary">7個の考え</span><button class="text-button" id="collapse-all">枝をたたむ</button><button class="text-button" id="view-toggle" aria-pressed="false">一覧で読む</button></div>
+        <div class="board-toolbar" id="board-actions"><button class="button" id="multi-select" aria-pressed="false">複数選択</button><button class="button" id="new-frame">分類枠で囲む</button><span id="board-selection">カードの端から枝を追加</span><button class="button" id="board-edit">考えを編集</button></div>
+      </details>
+      <div class="side-bottom">
+        <p class="local-label">共有中のデモ</p>
+        <a class="side-button" id="open-story" href="./?demo=origin">思考の芽が生まれるまで ↗</a>
+        <button class="side-button" id="share-notebook">このノートを共有</button>
+        <p class="local-label">このブラウザに自動保存</p>
+        <p class="muted small">端末間では共有されません。大切な考えはファイルにも残せます。</p>
+        <button class="side-button" id="export-all">ノートを書き出す</button>
+        <button class="side-button" id="import-file">ファイルから読み込む</button>
+        <button class="side-button" id="open-help">使い方・保存について</button>
+        <a class="side-button" href="https://github.com/toki0001/shiko-no-me/issues/new" target="_blank" rel="noopener noreferrer">不具合・感想を送る ↗</a>
+        <p class="muted small">GitHubへの公開投稿です。個人情報やノート本文は書かないでください。</p>
+      </div>
+    </aside>
+    <div class="sidebar-shade" id="sidebar-shade" hidden>
+</div>
+    <main class="main">
+      <header class="topbar">
+        <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
+        <span class="save-status" id="save-status" role="status">このブラウザに保存</span>
+        <div class="top-actions">
+<button class="button ai-button" id="open-ai" aria-label="AIと考える">AI <span id="pending-count" hidden>
+</span>
+</button>
+<button class="button" id="open-sidebar" aria-label="ノート一覧と操作メニュー" aria-controls="sidebar" aria-expanded="false">ノート</button>
+</div>
+      </header>
+      <div class="notice" id="notice" role="alert" hidden>
+</div>
+      <div class="workspace">
+        <section class="paper" aria-labelledby="notebook-title">
+          <div class="notebook-heading">
+<p class="eyebrow" id="notebook-context">思考ボード</p>
+<p class="notebook-note" id="notebook-note">一人だと後回しになる学びを、無理なく続けたい。</p>
+</div>
+          <div id="focus-path" class="focus-path" hidden>
+</div>
+          <div id="board" class="board" role="region" aria-label="考えを広げるボード" aria-describedby="board-instructions" tabindex="0"></div>
+          <div class="history-controls" role="group" aria-label="操作の履歴"><button class="button" id="undo" aria-label="元に戻す" title="元に戻す（Ctrl / ⌘ + Z）" disabled>←</button><button class="button" id="redo" aria-label="やり直す" title="やり直す（Ctrl / ⌘ + Shift + Z）" disabled>→</button></div>
+          <div class="board-navigation" id="board-navigation">
+            <span id="board-instructions">余白をドラッグして移動。カードの端の＋で分岐。</span>
+            <div class="zoom-controls"><button id="zoom-out" aria-label="ボードを縮小">−</button><output id="zoom-value">100%</output><button id="zoom-in" aria-label="ボードを拡大">＋</button><button id="fit-board" aria-label="ボード全体を見る"><span class="fit-label-full">全体を見る</span><span class="fit-label-short" aria-hidden="true">全体</span></button></div>
+          </div>
+          <div class="sr-only" id="board-status" role="status"></div>
+          <div id="shared-banner" class="shared-banner" hidden>
+            <span class="shared-label">共有中のデモ・閲覧専用</span>
+            <div class="story-navigation"><button id="story-prev" aria-label="前の考え">←</button><output id="story-position">1 / 7</output><button id="story-next" aria-label="次の考え">→</button><button class="button" id="shared-details">メモを読む</button></div>
+            <button class="button primary" id="copy-shared">自分のノートにコピー</button>
+            <a href="./" class="text-button">自分のノートへ戻る</a>
+          </div>
+          <div id="outline" class="outline" role="tree" aria-label="考えのツリー" tabindex="-1" hidden>
+            <div class="tree-row selected" style="--depth:0">
+<span class="node-select">学びが続く勉強会をつくる</span>
+<span class="state-label growing">考え中</span>
+</div>
+            <div class="tree-row" style="--depth:1">
+<span class="node-select">どんな人と学びたい？</span>
+<span class="state-label adopted">採用</span>
+</div>
+            <div class="tree-row" style="--depth:2">
+<span class="node-select">同じ授業でつまずいている人</span>
+</div>
+            <div class="tree-row" style="--depth:1">
+<span class="node-select">どんな形なら続けられる？</span>
+</div>
+            <div class="tree-row" style="--depth:2">
+<span class="node-select">週に一度、30分だけ集まる</span>
+<span class="state-label adopted">採用</span>
+</div>
+            <div class="tree-row" style="--depth:2">
+<span class="node-select">毎日進捗を投稿する</span>
+<span class="state-label parked">保留</span>
+</div>
+            <div class="tree-row" style="--depth:1">
+<span class="node-select">まず小さく試すには？</span>
+</div>
+          </div>
+          <p class="keyboard-hint">カードの端の＋から、考えを広げる。</p>
+          <div class="tree-actions">
+<button class="button primary" id="add-child">＋ この先に考えを足す</button>
+</div>
+        </section>
+        <aside class="inspector" id="inspector" aria-label="選んだ考えを編集">
+          <div class="inspector-top">
+<span class="eyebrow">選んだ考え</span>
+<button class="icon-button" id="close-inspector" aria-label="編集を閉じる">×</button>
+</div>
+          <p class="breadcrumb" id="breadcrumb">学びが続く勉強会をつくる</p>
+          <label class="field-label" for="node-text">考え</label>
+<textarea id="node-text" maxlength="240" rows="3">学びが続く勉強会をつくる</textarea>
+          <label class="field-label" for="node-note">メモ・判断した理由</label>
+<textarea id="node-note" maxlength="4000" rows="6" placeholder="なぜそう思う？ まだ決めていないことは？">一人だと後回しになる学びを、無理なく続けたい。</textarea>
+          <fieldset class="states">
+<legend>この考えは</legend>
+<div id="state-buttons">
+<button data-state="growing" aria-pressed="true">考え中</button>
+<button data-state="adopted" aria-pressed="false">採用</button>
+<button data-state="parked" aria-pressed="false">保留</button>
+<button data-state="rejected" aria-pressed="false">見送り</button>
+</div>
+</fieldset>
+          <p class="source-label" id="node-source">自分の考え</p>
+          <div class="line-color-field"><label class="field-label" id="line-color-label" for="line-color">この考えにつながる線の色</label><input id="line-color" type="color" value="#4f7d62"><div id="line-swatches" class="line-swatches" aria-label="線の色の候補"></div><p class="muted small">色の意味は自由。採用・保留の判断とは別です。</p></div>
+          <button class="button mobile-only full" id="mobile-sibling">同じ階層に考えを足す</button>
+<button class="button mobile-only full" id="editor-undo" disabled>元に戻す</button>
+<button class="button mobile-only full" id="editor-redo" disabled>やり直す</button>
+          <details class="branch-options">
+<summary>枝の整理</summary>
+<div class="branch-grid">
+<button class="button" id="move-up">上へ</button>
+<button class="button" id="move-down">下へ</button>
+<button class="button" id="indent">一段深く</button>
+<button class="button" id="outdent">一段浅く</button>
+<button class="button span-two" id="focus-branch">この枝だけ見る</button>
+<button class="button danger span-two" id="delete-node">この枝を削除</button>
+</div>
+</details>
+        </aside>
+      </div>
+      <div class="mobile-actions">
+<button class="button" id="mobile-edit">編集する</button>
+<button class="button primary" id="mobile-add">＋ 考えを足す</button>
+</div>
+    </main>
+  </div>
+  <dialog id="entry-dialog" aria-labelledby="entry-title">
+<form id="entry-form">
+<div class="dialog-heading">
+<h2 id="entry-title">考えを足す</h2>
+<button type="button" class="icon-button" data-close aria-label="閉じる">×</button>
+</div>
+<label class="field-label" for="entry-text">考え</label>
+<textarea id="entry-text" rows="3" maxlength="240" required placeholder="まだまとまっていなくても大丈夫">
+</textarea>
+<label class="field-label" for="entry-note">メモ（任意）</label>
+<textarea id="entry-note" rows="3" maxlength="4000">
+</textarea>
+<p class="form-error" id="entry-error" role="alert">
+</p>
+<div class="dialog-actions">
+<button type="button" class="button" data-close>やめる</button>
+<button type="submit" class="button primary">追加する</button>
+</div>
+</form>
+</dialog>
+  <dialog id="ai-dialog" class="wide-dialog" aria-labelledby="ai-title">
+<div class="dialog-heading">
+<div>
+<p class="eyebrow">必要なときだけ</p>
+<h2 id="ai-title">AIと考える</h2>
+</div>
+<button class="icon-button" data-close aria-label="閉じる">×</button>
+</div>
+<p class="muted">ノートをAIへ渡し、返ってきた案をここで選びます。アプリからAIへの自動送信やAPI呼び出しはありません。</p>
+<p class="target-note" id="ai-target">
+</p>
+<div class="ai-grid">
+<section>
+<h3>1. 相談する</h3>
+<label class="field-label" for="ai-question">聞きたいこと</label>
+<textarea id="ai-question" rows="3" maxlength="1200">この考えを深めるために、見落としや別の見方を提案して。</textarea>
+<label class="field-label" for="ai-scope">AIに渡す範囲</label>
+<select id="ai-scope">
+<option value="branch">選んだ枝と、その下の考え</option>
+<option value="notebook">このノート全体</option>
+</select>
+<p class="muted small">コピーした文章をCodexなどに貼り付けます。個人的な内容が含まれていないか、渡す前に確認してください。</p>
+<button class="button primary full" id="copy-prompt">依頼文をコピー</button>
+<details>
+<summary>渡す内容を確認</summary>
+<textarea id="prompt-preview" rows="7" readonly aria-label="AIに渡す依頼文">
+</textarea>
+</details>
+</section>
+<section>
+<h3>2. 返ってきた案を受け取る</h3>
+<label class="field-label" for="proposal-input">AIの回答を貼り付ける</label>
+<textarea id="proposal-input" rows="6" maxlength="100000" spellcheck="false" placeholder="依頼文で指定したJSON形式の回答を貼り付けます">
+</textarea>
+<p class="form-error" id="proposal-error" role="alert">
+</p>
+<button class="button full" id="read-proposals">内容を確認する</button>
+<button class="text-button" id="sample-proposals">取り込みの例を試す</button>
+</section>
+</div>
+<section class="pending-section">
+<h3 id="proposal-list-title" tabindex="-1">まだツリーに入っていない案 <span id="proposal-count">
+</span>
+</h3>
+<p class="muted small">「採用して追加」を押した案だけ、ツリーに入ります。文章は追加後に編集できます。</p>
+<div id="proposals">
+</div>
+</section>
+</dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+<div class="dialog-heading">
+<h2 id="confirm-title">確認</h2>
+<button class="icon-button" data-close aria-label="閉じる">×</button>
+</div>
+<p id="confirm-message">
+</p>
+<div class="dialog-actions">
+<button class="button" data-close>やめる</button>
+<button class="button danger" id="confirm-action">削除する</button>
+</div>
+</dialog>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+<div class="dialog-heading">
+<h2 id="help-title">使い方・保存について</h2>
+<button class="icon-button" data-close aria-label="閉じる">×</button>
+</div>
+<h3>考えを枝分かれさせる</h3>
+<p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
+<h3>ボードを動かす</h3>
+<p>カードや余白をドラッグして移動できます。ホイールはカーソルを中心に拡大縮小します。トラックパッドの二本指ピンチも、指の動きに合わせて細かく拡大縮小できます。右上の＋／−でも少しずつ調整できます。「全体を見る」で俯瞰でき、小さいカードを選ぶと拡大します。右上の「ノート」→「表示・整理」から「一覧で読む」に切り替えられます。</p>
+<h3>色と枠で分類する</h3>
+<p>カードを選んで編集欄を開くと、元からつながる線の色を変えられます。「分類枠で囲む」で選んだ枝全体を囲み、名前を付けます。別々のカードを囲むなら「複数選択」を有効にして選びます。PCではShiftを押して追加選択もできます。</p>
+<p>枠の見出しをドラッグすると中身も移動し、右下のつまみでサイズを変えると完全に囲まれたカードが中に入ります。枠だけを外してもカードは消えません。枠は分類、線は派生元を表し、採用・保留の判断とは独立しています。</p>
+<h3>自分で決める</h3>
+<p>採用・保留・見送りは、あとから何度でも変えられます。左上の←は元に戻す、→はやり直す操作です。文章・カードや枠の移動・ボードの表示位置を直近40段階まで戻せます。戻した後に新しく編集すると、古い「進む」履歴は消えます。履歴はこのページを閉じるまで有効です。</p>
+<h3>保存先は、このブラウザ</h3>
+<p>アカウントやクラウド保存はありません。ブラウザのデータ削除やプライベートモードでは失われるため、定期的に「ノートを書き出す」でファイルを保存してください。読み込みは既存ノートを消さず、別のノートとして追加します。</p>
+<h3>キーボード</h3>
+<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。枠の右下は矢印キーでサイズ変更。F2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
+<h3>AIについて</h3>
+<p>AIの契約はこのアプリに含まれません。渡した内容には、利用するAIサービスのデータ取り扱いが適用されます。AIを使わずにノートだけでも使えます。</p>
+</dialog>
+  <dialog id="frame-dialog" aria-labelledby="frame-dialog-title">
+    <form id="frame-form">
+      <div class="dialog-heading"><h2 id="frame-dialog-title">分類枠を編集</h2><button type="button" class="icon-button" data-close aria-label="閉じる">×</button></div>
+      <label class="field-label" for="frame-name">分類の名前</label><input id="frame-name" maxlength="80" required>
+      <label class="field-label" for="frame-color">枠の色</label><input id="frame-color" type="color" value="#4f7d62">
+      <p id="frame-members"></p><p class="muted small">右下のつまみで大きさを変えると、完全に囲まれたカードが中に入ります。枠を外してもカードや線は消えません。</p>
+      <p class="form-error" id="frame-error" role="alert"></p>
+      <div class="dialog-actions"><button type="button" class="button danger" id="delete-frame">枠だけ外す</button><button type="submit" class="button primary">変更を保存</button></div>
+    </form>
+  </dialog>
+  <input id="file-input" type="file" accept=".json,application/json" hidden>
+  <div class="toast" id="toast" role="status" hidden>
+</div>
+  <noscript>
+<p>ノートの編集と保存にはJavaScriptを有効にしてください。</p>
+</noscript>
+  <!-- build:app -->
+</body>
+</html>

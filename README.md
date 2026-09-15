@@ -49,7 +49,7 @@ npm test
 
 ## 静的な公開
 
-`dist/` は生成物ではなく、直接編集するHTML・CSS・JavaScriptを置いた公開ディレクトリです。ビルドは不要で、`dist/` の内容だけで動きます。ファイル参照はすべて相対パスなので、GitHub Pagesのサブディレクトリにも配置できます。
+`dist/` の内容だけで動く静的サイトです。HTMLの編集元は `src/index.html`、CSSとJavaScriptの編集元は `dist/*.css` / `dist/*.mjs` です。変更後は `npm run build` で配布用HTMLを生成してください。Node標準機能だけで、見た目と起動コードをHTMLにまとめて初期表示の通信待ちを減らします。ファイル参照は相対パスで、サブディレクトリにも配置できます。`npm run dev` は起動前に同じ生成を行います。
 
 Nodeの `server.mjs` は開発時の静的配信だけを担当します。公開ページはNodeサーバー・MCP SDK・モデルAPIに依存しません。Sites用の公開先識別情報は `.openai/hosting.json` に分離しています。
 
@@ -73,7 +73,9 @@ AI APIキーは不要です。コピーした依頼文を、自分が利用す�
 ## 構成
 
 ```text
-dist/index.html   画面と入力フォーム
+src/index.html    画面と入力フォームの編集元
+scripts/         外部依存なしの配布HTML生成
+dist/index.html   生成済みの配布HTML（直接編集しない）
 dist/styles.css   共通トークン・PC/スマホのレイアウト
 dist/board.css    ボード・カード・分類枠のレイアウト
 dist/focus.css    ボード中心の全画面表示・引き出しメニュー
