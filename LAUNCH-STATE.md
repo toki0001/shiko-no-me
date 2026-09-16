@@ -1,6 +1,16 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：カード編集改善版 / version 8（2026-09-15）
+## 現在の配布：整列ガイド版 / version 9（2026-09-16）
+
+- 同じURL・publicで `succeeded`（2026-09-16 08:38:50 UTC / 17:38:50 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
+- 配布コード: `cc393a5d50b80a9cec14f7ce1f507b00211fb0da`。GitHub/Sites mainへpush後、同じHEADの静的資産とmanifestの12ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_026d0e38eef08191aee51827417f0801`。
+- Deployment: `appgdep_6aaa5590038081919e476f0a3cdb0641`。
+- カード/枠移動で端・中心に6画面px以内で吸着し赤い破線。Altで自由移動。中身の相対位置を保ち、確定/取消で線を消す。74テスト成功、PC実画面・保存復元・取消を確認（QA.md）。
+- 匿名HTTP200。公開board-model.mjs/board-view.mjs/board.cssとHTML内全style/script本文がローカルと一致。公開ページ再読込でも既存6カードと新ガイド描画層を確認。公開の本人ノートは移動せず、ドラッグ検証はローカル検証ノートで実施。実スマホ未確認。
+
+## 過去の配布：カード編集改善版 / version 8（2026-09-15）
 
 - 同じURL・publicを維持し、`succeeded`（2026-09-15 07:52:39 UTC / 16:52:39 JST）を確認。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/
