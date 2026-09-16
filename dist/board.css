@@ -12,6 +12,7 @@
 .board textarea { user-select: text; touch-action: manipulation; }
 .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; }
 .board-edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.alignment-guides { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 6; stroke: #c44747; }
 .edge-hit { pointer-events: stroke; cursor: pointer; }
 .thought-card { position: absolute; width: 224px; height: 116px; background: var(--paper); border: 1px solid var(--strong); border-radius: 12px; box-shadow: 0 4px 12px #213c290a; }
 .thought-card.is-selected { outline: 2px solid var(--green); outline-offset: 2px; }

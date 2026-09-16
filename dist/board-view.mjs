@@ -1,4 +1,11 @@
-import { CARD, SIDES, boundsOf, connector } from './board-model.mjs';
+import {
+  CARD,
+  SIDES,
+  boundsOf,
+  connector,
+  alignmentContext,
+  alignTranslation,
+} from './board-model.mjs';
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -22,6 +29,10 @@ export class BoardView {
     this.frames = el('div', 'board-frames');
     this.cards = el('div', 'board-cards');
     this.world.append(this.frames, this.edges, this.cards);
+    this.alignmentGuides = svg('svg');
+    this.alignmentGuides.classList.add('alignment-guides');
+    this.alignmentGuides.setAttribute('aria-hidden', 'true');
+    this.world.append(this.alignmentGuides);
     container.append(this.world);
     this.cardElements = new Map();
     this.frameElements = new Map();
@@ -340,6 +351,11 @@ export class BoardView {
       dx: 0,
       dy: 0,
     };
+    this.gesture.alignment = alignmentContext(
+      this.book,
+      this.gesture,
+      new Set(this.rows.map((row) => row.node.id)),
+    );
   }
   pointerMove(event) {
     if (!this.pointers.has(event.pointerId)) return;
@@ -375,6 +391,7 @@ export class BoardView {
       this.transform();
       return;
     }
+    this.alignDrag(g, event);
     if (this.dragFrame) return;
     this.dragFrame = requestAnimationFrame(() => {
       this.dragFrame = null;
@@ -404,6 +421,33 @@ export class BoardView {
       );
     }
     this.drawGeometry(undefined, { positions, frames });
+    this.drawAlignmentGuides(g.guides ?? []);
+  }
+  alignDrag(g, event) {
+    const result = alignTranslation(
+      g.alignment,
+      (event.clientX - g.x) / g.view.scale,
+      (event.clientY - g.y) / g.view.scale,
+      g.view.scale,
+      event.altKey,
+    );
+    g.dx = result.dx;
+    g.dy = result.dy;
+    g.guides = result.guides;
+  }
+  drawAlignmentGuides(guides) {
+    this.alignmentGuides?.replaceChildren();
+    for (const guide of guides) {
+      const line = svg('line');
+      const vertical = guide.axis === 'x';
+      line.setAttribute('x1', vertical ? guide.at : guide.from);
+      line.setAttribute('x2', vertical ? guide.at : guide.to);
+      line.setAttribute('y1', vertical ? guide.from : guide.at);
+      line.setAttribute('y2', vertical ? guide.to : guide.at);
+      line.setAttribute('stroke-width', 1.5 / this.view.scale);
+      line.setAttribute('stroke-dasharray', `${5 / this.view.scale} ${4 / this.view.scale}`);
+      this.alignmentGuides.append(line);
+    }
   }
   pointerUp(event) {
     if (!this.pointers.has(event.pointerId)) return;
@@ -417,7 +461,9 @@ export class BoardView {
       return;
     }
     const g = this.gesture;
+    if (g?.moved && g.alignment && !this.callbacks.readOnly?.()) this.alignDrag(g, event);
     this.gesture = null;
+    this.alignmentGuides?.replaceChildren();
     if (this.dragFrame) cancelAnimationFrame(this.dragFrame);
     this.dragFrame = null;
     if (!g || g.pointerId !== event.pointerId) return;
@@ -482,6 +528,7 @@ export class BoardView {
     if (this.dragFrame) cancelAnimationFrame(this.dragFrame);
     this.dragFrame = null;
     this.gesture = null;
+    this.alignmentGuides?.replaceChildren();
     if (this.book) this.drawGeometry();
   }
   cancelGesture() {

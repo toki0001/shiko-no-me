@@ -10,6 +10,84 @@ export const PALETTE = Object.freeze([
   ['#637078', '灰'],
 ]);
 const extent = 200000;
+
+// Capture stationary references once per drag. A frame never snaps to its own contents.
+export function alignmentContext(book, gesture, visibleIds) {
+  const movingIds = new Set(gesture.ids);
+  const nodes = book.nodes.filter((node) => movingIds.has(node.id));
+  const frame = book.frames?.find((item) => item.id === gesture.frameId);
+  if (gesture.type !== 'cards' && gesture.type !== 'frame') return null;
+  if (!frame && !nodes.length) return null;
+  return {
+    moving: frame
+      ? { x: frame.x, y: frame.y, width: frame.width, height: frame.height }
+      : boundsOf(nodes),
+    targets: [
+      ...book.nodes
+        .filter((node) => !movingIds.has(node.id) && (!visibleIds || visibleIds.has(node.id)))
+        .map((node) => ({ ...node.position, ...CARD })),
+      ...(book.frames ?? [])
+        .filter((item) => item.id !== frame?.id && !item.nodeIds.some((id) => movingIds.has(id)))
+        .map((item) => ({ x: item.x, y: item.y, width: item.width, height: item.height })),
+    ],
+  };
+}
+
+export function alignTranslation(context, dx, dy, scale = 1, bypass = false) {
+  if (!context || bypass) return { dx, dy, guides: [] };
+  const tolerance = 6 / scale;
+  const moving = { ...context.moving, x: context.moving.x + dx, y: context.moving.y + dy };
+  const guides = [];
+  const offsets = { x: 0, y: 0 };
+  for (const axis of ['x', 'y']) {
+    const size = axis === 'x' ? 'width' : 'height';
+    const other = axis === 'x' ? 'y' : 'x';
+    const otherSize = axis === 'x' ? 'height' : 'width';
+    let best = null;
+    for (const target of context.targets) {
+      for (const sourceFraction of [0, 0.5, 1]) {
+        for (const targetFraction of [0, 0.5, 1]) {
+          // Match centers to centers, or edges to edges, rather than ambiguous center/edge pairs.
+          if ((sourceFraction === 0.5) !== (targetFraction === 0.5)) continue;
+          const at = target[axis] + target[size] * targetFraction;
+          const delta = at - moving[axis] - moving[size] * sourceFraction;
+          const gap = Math.max(
+            0,
+            target[other] - moving[other] - moving[otherSize],
+            moving[other] - target[other] - target[otherSize],
+          );
+          if (Math.abs(delta) > tolerance) continue;
+          if (
+            !best ||
+            Math.abs(delta) < Math.abs(best.delta) - 1e-8 ||
+            (Math.abs(Math.abs(delta) - Math.abs(best.delta)) < 1e-8 && gap < best.gap)
+          ) {
+            best = { delta, at, target, gap };
+          }
+        }
+      }
+    }
+    if (best) {
+      offsets[axis] = best.delta;
+      guides.push({ axis, at: best.at, target: best.target });
+    }
+  }
+  return {
+    dx: dx + offsets.x,
+    dy: dy + offsets.y,
+    guides: guides.map(({ axis, at, target }) => {
+      const other = axis === 'x' ? 'y' : 'x';
+      const size = axis === 'x' ? 'height' : 'width';
+      const start = moving[other] + offsets[other];
+      return {
+        axis,
+        at,
+        from: Math.min(start, target[other]) - 12 / scale,
+        to: Math.max(start + moving[size], target[other] + target[size]) + 12 / scale,
+      };
+    }),
+  };
+}
 const check = (condition, message) => {
   if (!condition) throw new Error(message);
 };

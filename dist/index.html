@@ -1014,6 +1014,7 @@ dialog h3 {
 .board textarea { user-select: text; touch-action: manipulation; }
 .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; }
 .board-edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.alignment-guides { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 6; stroke: #c44747; }
 .edge-hit { pointer-events: stroke; cursor: pointer; }
 .thought-card { position: absolute; width: 224px; height: 116px; background: var(--paper); border: 1px solid var(--strong); border-radius: 12px; box-shadow: 0 4px 12px #213c290a; }
 .thought-card.is-selected { outline: 2px solid var(--green); outline-offset: 2px; }
@@ -1403,6 +1404,7 @@ dialog h3 {
 <h3>考えを枝分かれさせる</h3>
 <p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
 <h3>ボードを動かす</h3>
+<p>カードや枠を動かすと、ほかのカード・枠の端や中心に近づいたところで赤い点線が出て、位置がそろいます。Altを押しながらドラッグすると、吸着せず自由に動かせます。</p>
 <p>カードや余白をドラッグして移動できます。ホイールはカーソルを中心に拡大縮小します。トラックパッドの二本指ピンチも、指の動きに合わせて細かく拡大縮小できます。右上の＋／−でも少しずつ調整できます。「全体を見る」で俯瞰でき、スマホでは小さいカードを選ぶと拡大します。右上の「ノート」→「表示・整理」から「一覧で読む」に切り替えられます。</p>
 <h3>カードを読む・編集する</h3>
 <p>PCはカードをダブルクリックすると、右側で考えやメモを読んで編集できます。入力は自動保存されます。開いたまま別のカードをクリックすると内容が切り替わり、ボードの移動や拡大も続けられます。×かEscapeで閉じます。スマホはカードを選んで「編集する」を押します。</p>
