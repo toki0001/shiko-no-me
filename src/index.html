@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="考えを枝分かれさせて深める思考ノート。自分で書き、必要なときだけAIの提案を取り込めます。">
+  <meta name="description" content="案を広げて、比べて決める思考ノート。採用した理由も、見送った案も、一緒に残せます。">
   <meta name="theme-color" content="#f5f6f2">
   <title>思考の芽 — 思考ノート</title>
   <!-- build:styles -->
@@ -13,6 +13,7 @@
   <link rel="modulepreload" href="./board-view.mjs">
   <link rel="modulepreload" href="./story.mjs">
   <link rel="modulepreload" href="./history.mjs">
+  <link rel="modulepreload" href="./decision-model.mjs">
 </head>
 <body>
   <a class="skip-link" href="#board">思考ボードへ</a>
@@ -51,9 +52,11 @@
 </div>
     <main class="main">
       <header class="topbar">
+        <span class="preview-version">Ver1.01 確認版</span>
         <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
         <span class="save-status" id="save-status" role="status">このブラウザに保存</span>
         <div class="top-actions">
+<button class="button" id="quick-help" aria-label="使い方を見る">使い方</button>
 <button class="button ai-button" id="open-ai" aria-label="AIと考える">AI <span id="pending-count" hidden>
 </span>
 </button>
@@ -62,6 +65,11 @@
       </header>
       <div class="notice" id="notice" role="alert" hidden>
 </div>
+      <nav class="workspace-modes" aria-label="考え方を切り替える">
+        <div class="mode-switch"><button id="mode-board" aria-pressed="true">広げる</button><button id="mode-compare" aria-pressed="false">比べて決める</button></div>
+        <span class="mode-caption">案を広げて、選んだ理由まで残す。</span>
+        <div class="mode-start"><button class="text-button" id="try-example">例から試す</button><button class="button" id="new-question">＋ 新しい問い</button></div>
+      </nav>
       <div class="workspace">
         <section class="paper" aria-labelledby="notebook-title">
           <div class="notebook-heading">
@@ -83,6 +91,12 @@
             <button class="button primary" id="copy-shared">自分のノートにコピー</button>
             <a href="./" class="text-button">自分のノートへ戻る</a>
           </div>
+          <section id="decision-view" class="decision-view" aria-label="選択肢を比べて決める" tabindex="-1" hidden>
+            <div class="decision-heading"><div><p class="eyebrow" id="decision-eyebrow">今、決めたいこと</p><h2 id="decision-question"></h2><p class="muted" id="decision-description">同じ問いの案を並べて、選ぶ理由を残しましょう。</p><button class="text-button" id="edit-question">問いを編集</button></div><button class="button primary" id="open-summary">判断をまとめる ↗</button></div>
+            <div class="decision-context"><label for="comparison-question">比べる問い</label><select id="comparison-question"></select><span id="decision-count" role="status"></span><button class="button" id="add-option">＋ 比べる案を追加</button></div>
+            <div id="decision-cards" class="decision-cards"></div>
+            <div id="decision-empty" class="decision-empty" hidden><h3>まず、選択肢を2つ並べてみましょう。</h3><p>「どちらにする？」と思ったことから。案を追加すると、ここで比べられます。</p><button class="button primary" id="empty-add-option">最初の案を追加</button><button class="button" id="empty-example">具体例から試す</button></div>
+          </section>
           <div id="outline" class="outline" role="tree" aria-label="考えのツリー" tabindex="-1" hidden>
             <div class="tree-row selected" style="--depth:0">
 <span class="node-select">学びが続く勉強会をつくる</span>
@@ -112,6 +126,7 @@
           </div>
           <p class="keyboard-hint">カードの端の＋から、考えを広げる。</p>
           <div class="tree-actions">
+<button class="button" id="quick-edit">選んだカードを編集</button>
 <button class="button primary" id="add-child">＋ この先に考えを足す</button>
 </div>
         </section>
@@ -135,7 +150,7 @@
 </div>
 </fieldset>
           <p class="source-label" id="node-source">自分の考え</p>
-          <div class="line-color-field"><label class="field-label" id="line-color-label" for="line-color">この考えにつながる線の色</label><input id="line-color" type="color" value="#4f7d62"><div id="line-swatches" class="line-swatches" aria-label="線の色の候補"></div><p class="muted small">色の意味は自由。採用・保留の判断とは別です。</p></div>
+          <details class="color-options"><summary>線の色を変える</summary><div class="line-color-field"><label class="field-label" id="line-color-label" for="line-color">この考えにつながる線の色</label><input id="line-color" type="color" value="#4f7d62"><div id="line-swatches" class="line-swatches" aria-label="線の色の候補"></div><p class="muted small">色の意味は自由。採用・保留の判断とは別です。</p></div></details>
           <button class="button mobile-only full" id="mobile-sibling">同じ階層に考えを足す</button>
 <button class="button mobile-only full" id="editor-undo" disabled>元に戻す</button>
 <button class="button mobile-only full" id="editor-redo" disabled>やり直す</button>
@@ -243,7 +258,7 @@
 <div class="dialog-heading">
 <h2 id="help-title">使い方・保存について</h2>
 <button class="icon-button" data-close aria-label="閉じる">×</button>
-</div>
+</div><div class="quick-start"><h3>迷っていることを、決められる形に。</h3><ol><li><strong>広げる</strong> — カードの＋から案を足す。選んで「編集」で文章と理由を書く。</li><li><strong>比べて決める</strong> — 同じ問いの案を並べ、採用・保留・見送りを選ぶ。</li><li><strong>判断をまとめる</strong> — 見送った案も含め、理由をコピーして持ち帰る。</li></ol><p>ボードは余白をドラッグで移動、ホイールで拡大・縮小。PCではカードのダブルクリックでも編集できます。</p></div>
 <h3>考えを枝分かれさせる</h3>
 <p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
 <h3>ボードを動かす</h3>
@@ -263,6 +278,13 @@
 <h3>AIについて</h3>
 <p>AIの契約はこのアプリに含まれません。渡した内容には、利用するAIサービスのデータ取り扱いが適用されます。AIを使わずにノートだけでも使えます。</p>
 </dialog>
+  <dialog id="summary-dialog" aria-labelledby="summary-title" class="summary-dialog">
+    <div class="dialog-heading"><h2 id="summary-title">判断を持ち帰る</h2><button type="button" class="icon-button" data-close aria-label="まとめを閉じる">×</button></div>
+    <p class="muted">採用した案も、まだ迷っている案も、理由と一緒に残します。</p>
+    <label class="field-label" for="decision-summary">この問いのまとめ</label><textarea id="decision-summary" readonly rows="14"></textarea>
+    <p id="summary-feedback" role="status" class="muted small">コピーして、普段のノートやチャットに貼り付けられます。</p>
+    <div class="dialog-actions"><button class="button" id="download-summary">文章ファイルに保存</button><button class="button primary" id="copy-summary">まとめをコピー</button></div>
+  </dialog>
   <dialog id="frame-dialog" aria-labelledby="frame-dialog-title">
     <form id="frame-form">
       <div class="dialog-heading"><h2 id="frame-dialog-title">分類枠を編集</h2><button type="button" class="icon-button" data-close aria-label="閉じる">×</button></div>

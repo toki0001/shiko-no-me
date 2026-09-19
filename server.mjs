@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+const port = Number(process.env.PORT || 4187);
 const directory = path.resolve(fileURLToPath(new URL('./dist/', import.meta.url)));
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -30,4 +31,4 @@ http
       response.writeHead(404).end('Not found');
     }
   })
-  .listen(4187, '127.0.0.1', () => console.log('Think Tree: http://127.0.0.1:4187'));
+  .listen(port, '127.0.0.1', () => console.log(`Think Tree: http://127.0.0.1:${port}`));

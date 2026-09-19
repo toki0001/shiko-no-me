@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BoardView } from '../dist/board-view.mjs';
+import { CARD } from '../dist/board-model.mjs';
 
 function harness() {
   const view = Object.create(BoardView.prototype);
@@ -69,4 +70,46 @@ test('wheel units normalize, huge input is bounded, and editor scroll is untouch
   assert.deepEqual(c.view.view, before);
   c.wheel(NaN);
   assert.deepEqual(c.view.view, before);
+});
+
+test('a notebook changed while the board is hidden fits when its viewport returns', () => {
+  const { view } = harness();
+  const node = { id: 'new-root', position: { x: 4000, y: -2000 } };
+  view.book = { nodes: [node], frames: [] };
+  view.rows = [{ node }];
+  view.viewportSize = { width: 900, height: 700 };
+  view.container.clientWidth = 0;
+  view.container.clientHeight = 0;
+  const previous = { ...view.view };
+  view.fit();
+  assert.equal(view.fitPending, true);
+  view.resizeViewport(0, 0);
+  assert.deepEqual(view.view, previous);
+  assert.deepEqual(view.viewportSize, { width: 900, height: 700 });
+  view.container.clientWidth = 1000;
+  view.container.clientHeight = 600;
+  view.resizeViewport(1000, 600);
+  assert.equal(view.fitPending, false);
+  assert.equal((node.position.x + CARD.width / 2) * view.view.scale + view.view.x, 500);
+  assert.equal((node.position.y + CARD.height / 2) * view.view.scale + view.view.y, 300);
+  const fitted = { ...view.view };
+  view.resizeViewport(1000, 600);
+  assert.deepEqual(view.view, fitted);
+});
+
+test('hiding the same notebook preserves its view and subsequent resize keeps the world center', () => {
+  const { view } = harness();
+  view.book = {};
+  view.viewportSize = { width: 900, height: 700 };
+  const before = { ...view.view };
+  view.resizeViewport(0, 0);
+  view.resizeViewport(900, 0);
+  view.resizeViewport(0, 700);
+  assert.deepEqual(view.view, before);
+  view.resizeViewport(900, 700);
+  assert.deepEqual(view.view, before);
+  const center = { x: (450 - before.x) / before.scale, y: (350 - before.y) / before.scale };
+  view.resizeViewport(1100, 800);
+  assert.equal((550 - view.view.x) / view.view.scale, center.x);
+  assert.equal((400 - view.view.y) / view.view.scale, center.y);
 });

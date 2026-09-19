@@ -22,6 +22,7 @@ export class BoardView {
     this.callbacks = callbacks;
     this.view = { x: 36, y: 36, scale: 1 };
     this.bookId = null;
+    this.fitPending = false;
     this.world = el('div', 'board-world');
     this.edges = svg('svg');
     this.edges.classList.add('board-edges');
@@ -52,17 +53,27 @@ export class BoardView {
     container.addEventListener('keydown', (event) => this.keydown(event));
     window.addEventListener('blur', () => this.cancelGesture());
     this.resizeObserver = new ResizeObserver(([entry]) => {
-      if (!this.book) return;
       const { width, height } = entry.contentRect;
-      // Rotation/resizing preserves the world point at the viewport center.
-      if (this.viewportSize) {
-        this.view.x += (width - this.viewportSize.width) / 2;
-        this.view.y += (height - this.viewportSize.height) / 2;
-      }
-      this.viewportSize = { width, height };
-      this.transform();
+      this.resizeViewport(width, height);
     });
     this.resizeObserver.observe(container);
+  }
+  resizeViewport(width, height) {
+    // A hidden board has no usable viewport. Preserve the last visible size
+    // until it returns, then fit a notebook that changed while hidden.
+    if (!this.book || width <= 0 || height <= 0) return;
+    if (this.fitPending) {
+      this.viewportSize = { width, height };
+      this.fit();
+      return;
+    }
+    // Rotation/resizing preserves the world point at the viewport center.
+    if (this.viewportSize) {
+      this.view.x += (width - this.viewportSize.width) / 2;
+      this.view.y += (height - this.viewportSize.height) / 2;
+    }
+    this.viewportSize = { width, height };
+    this.transform();
   }
   render(book, rows, selectedIds, selectedFrame) {
     const focused = document.activeElement;
@@ -231,7 +242,12 @@ export class BoardView {
     this.container.classList.toggle('is-overview', this.view.scale < 0.7);
   }
   fit() {
-    if (!this.book || !this.container.clientWidth) return;
+    if (!this.book) return;
+    if (!this.container.clientWidth || !this.container.clientHeight) {
+      this.fitPending = true;
+      return;
+    }
+    this.fitPending = false;
     const rect = boundsOf(
       this.rows.map((row) => row.node),
       this.book.frames,

@@ -45,7 +45,7 @@ test('HTML has unique IDs, labels, viewport and manual AI fallback', async () =>
 test('every native dialog has an accessible name linked to an existing heading', async () => {
   const html = await readFile(path.join(root, 'dist/index.html'), 'utf8');
   const dialogs = [...html.matchAll(/<dialog\b([^>]+)>/g)];
-  assert.equal(dialogs.length, 5);
+  assert.equal(dialogs.length, 6);
   for (const dialog of dialogs) {
     const label = dialog[1].match(/aria-labelledby="([^"]+)"/);
     assert(label, dialog[0]);

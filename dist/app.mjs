@@ -36,6 +36,7 @@ import {
 import { BoardView } from './board-view.mjs';
 import { createIdeaStory } from './story.mjs';
 import { UndoHistory } from './history.mjs';
+import { comparisonFor, decisionSummary, templateNotebook } from './decision-model.mjs';
 
 // このファイルが画面、保存、履歴をつなぐ。データ検証はmodel、描画とジェスチャーはBoardViewへ委譲する。
 // 内容の変更はtransaction、入力中の文章はeditNodeを入口にし、成功した変更だけ履歴と保存へ渡す。
@@ -55,13 +56,17 @@ try {
 const loaded = load(local);
 const story =
   new URLSearchParams(location.search).get('demo') === 'origin' ? createIdeaStory() : null;
+const firstVisit = !story && loaded.raw === null && !loaded.blocked;
+const firstExample = firstVisit ? templateNotebook() : null;
 let readOnly = Boolean(story),
   storyIndex = 0;
 // A shared view gets an isolated workspace. Merely opening a public link must
 // never overwrite this browser's own notebooks or mark them as shared.
 let workspace = story
   ? { version: 1, activeId: story.notebook.id, notebooks: [story.notebook] }
-  : loaded.workspace;
+  : firstExample
+    ? { version: 1, activeId: firstExample.id, notebooks: [firstExample] }
+    : loaded.workspace;
 let savedRaw = loaded.raw,
   blocked = loaded.blocked,
   saveError = '',
@@ -76,9 +81,15 @@ let saveQueued = false,
 let selectedIds = new Set(),
   selectedFrameId = null,
   multipleMode = false,
-  viewMode = 'board',
+  viewMode =
+    firstVisit || new URLSearchParams(location.search).get('view') === 'compare'
+      ? 'compare'
+      : 'board',
   draft = null;
 let composingTarget = null;
+let comparisonId = null,
+  comparisonBookId = null,
+  exampleBookId = firstExample?.id;
 const compact = matchMedia('(max-width: 940px)');
 let entryParentId,
   entryMode,
@@ -112,6 +123,7 @@ const boardView = new BoardView($('board'), {
   edge: (id) => {
     if (selectBoardNode(id)) {
       openEditor();
+      $('line-color').closest('details').open = true;
       $('line-color').focus();
     }
   },
@@ -382,6 +394,7 @@ function renderTree() {
   initializeBoard(book());
   boardView.render(book(), rows, selectedIds, selectedFrameId);
   renderBoardTools();
+  if (viewMode === 'compare') renderDecision();
   $('collapse-all').textContent = collapsed.size ? '枝をひらく' : '枝をたたむ';
   $('focus-path').hidden = focusId === book().rootId;
   $('focus-path').replaceChildren(
@@ -414,6 +427,10 @@ function selectNode(id, focus = true) {
   return true;
 }
 function focusRow() {
+  if (viewMode === 'compare') {
+    $('decision-view').focus({ preventScroll: true });
+    return;
+  }
   if (viewMode === 'board') {
     boardView.reveal(selectedId, true);
     return;
@@ -491,6 +508,7 @@ function renderEditor() {
 function setEditorModal(enabled) {
   for (const target of [
     document.querySelector('.topbar'),
+    document.querySelector('.workspace-modes'),
     document.querySelector('.paper'),
     document.querySelector('.mobile-actions'),
     $('notice'),
@@ -516,11 +534,23 @@ function closeEditor(restore = true) {
   const wasOpen = $('inspector').classList.contains('is-open');
   $('inspector').classList.remove('is-open');
   setEditorModal(false);
-  if (restore && wasOpen)
-    (editorReturn?.isConnected && editorReturn.getClientRects().length
-      ? editorReturn
-      : $(viewMode === 'outline' ? 'outline' : 'board')
-    ).focus();
+  if (restore && wasOpen) {
+    const original =
+      editorReturn?.isConnected && editorReturn.getClientRects().length ? editorReturn : null;
+    const comparisonReturn =
+      viewMode === 'compare'
+        ? [...$('decision-cards').querySelectorAll('[data-focus-key]')].find(
+            (node) =>
+              node.dataset.focusKey === editorReturn?.dataset?.focusKey ||
+              node.dataset.focusKey === `${$('inspector').dataset.nodeId}:edit`,
+          )
+        : null;
+    (
+      original ||
+      comparisonReturn ||
+      $(viewMode === 'compare' ? 'decision-view' : viewMode === 'outline' ? 'outline' : 'board')
+    ).focus({ preventScroll: true });
+  }
 }
 function trapFocus(event, container) {
   if (event.key !== 'Tab') return;
@@ -580,20 +610,26 @@ function treeKeydown(event) {
     else if (node.parentId && selectedId !== focusId) selectNode(node.parentId);
   }
 }
-function openEntry(mode) {
+function openEntry(mode, parentId) {
   if (readOnly) return;
   if (!editorReady()) return;
   entryMode = mode;
-  entryParentId = mode === 'sibling' ? activeNode().parentId : selectedId;
+  entryParentId = parentId ?? (mode === 'sibling' ? activeNode().parentId : selectedId);
   if (mode === 'sibling' && !entryParentId) return;
   $('entry-title').textContent =
     mode === 'notebook'
-      ? '新しいノート'
+      ? '新しい問いから始める'
       : mode === 'sibling'
         ? '別の考えを並べる'
         : 'この先に考えを足す';
   $('entry-text').value = '';
+  $('entry-text').placeholder =
+    mode === 'notebook' ? '例：週末の2時間、何に使う？' : 'まだまとまっていなくても大丈夫';
   $('entry-note').value = '';
+  $('entry-note').placeholder =
+    mode === 'notebook'
+      ? '条件や大切にしたいこと。時間、予算、避けたいことなど。'
+      : 'よい点・気になる点・判断した理由など。';
   $('entry-error').textContent = '';
   $('entry-dialog').showModal();
   $('entry-text').focus();
@@ -665,6 +701,7 @@ function editNode(event) {
       renderNotebooks();
       renderTree();
     }
+    if (viewMode === 'compare') renderDecision();
     renderHistory();
     $('node-source').textContent =
       activeNode().source === 'human' ? '自分の考え' : 'AIの提案を自分で編集';
@@ -886,6 +923,10 @@ $('open-sidebar').addEventListener('click', () => {
 });
 $('close-sidebar').addEventListener('click', () => closeSidebar());
 $('sidebar-shade').addEventListener('click', () => closeSidebar());
+$('quick-help').addEventListener('click', () => {
+  if (editorReady()) $('help-dialog').showModal();
+});
+$('quick-edit').addEventListener('click', () => $('board-edit').click());
 $('open-help').addEventListener('click', () => {
   if (editorReady()) $('help-dialog').showModal();
 });
@@ -1165,6 +1206,21 @@ function renderBoardTools() {
   $('multi-select').textContent = multipleMode ? '複数選択を終了' : '複数選択';
   $('view-toggle').textContent = viewMode === 'board' ? '一覧で読む' : 'ボードへ戻る';
   $('view-toggle').setAttribute('aria-pressed', String(viewMode === 'outline'));
+  document.body.classList.toggle('decision-mode', viewMode === 'compare');
+  const viewURL = new URL(location.href);
+  if (viewMode === 'compare') viewURL.searchParams.set('view', 'compare');
+  else viewURL.searchParams.delete('view');
+  if (viewURL.href !== location.href) window.history.replaceState(null, '', viewURL);
+  $('decision-view').hidden = viewMode !== 'compare';
+  if (viewMode === 'compare') document.querySelector('.history-controls').append($('save-status'));
+  else
+    document
+      .querySelector('.topbar')
+      .insertBefore($('save-status'), document.querySelector('.top-actions'));
+  $('mode-board').setAttribute('aria-pressed', String(viewMode !== 'compare'));
+  $('mode-compare').setAttribute('aria-pressed', String(viewMode === 'compare'));
+  $('quick-edit').textContent = frame ? '枠を編集' : '選んだカードを編集';
+  $('quick-edit').disabled = !frame && selectedIds.size !== 1;
   $('board').hidden = viewMode !== 'board';
   $('outline').hidden = viewMode !== 'outline';
   $('board-navigation').hidden = viewMode !== 'board';
@@ -1189,7 +1245,8 @@ function selectBoardNode(id, additive = false) {
   editGroup = '';
   renderTree();
   renderEditor();
-  if (compact.matches && boardView.view.scale < 0.7) boardView.reveal(selectedId);
+  if (viewMode === 'board' && compact.matches && boardView.view.scale < 0.7)
+    boardView.reveal(selectedId);
   return true;
 }
 function beginDraft(parentId, side) {
@@ -1398,6 +1455,255 @@ for (const [value, name] of PALETTE) {
 }
 
 // Optional browser-native agent surface. No SDK, network, or auto-approval tool.
+
+function comparison() {
+  if (comparisonBookId !== book().id || !getNode(book(), comparisonId)) {
+    comparisonId = comparisonFor(book(), selectedId).question.id;
+    comparisonBookId = book().id;
+  }
+  return comparisonFor(book(), comparisonId);
+}
+function setWorkspaceMode(mode) {
+  if (mode === viewMode || !editorReady()) return;
+  closeSidebar(false);
+  if (compact.matches) closeEditor(false);
+  viewMode = mode;
+  if (mode === 'compare') {
+    comparisonId = comparisonFor(book(), selectedId).question.id;
+    comparisonBookId = book().id;
+  }
+  selectedFrameId = null;
+  selectedIds = new Set([selectedId]);
+  multipleMode = false;
+  renderTree();
+  if (mode === 'compare') $('decision-view').focus({ preventScroll: true });
+}
+function editCandidate(id, reason = false) {
+  if (!selectBoardNode(id)) return;
+  openEditor();
+  if (reason) $('node-note').focus();
+}
+function renderDecision() {
+  const { question, candidates } = comparison();
+  const focusKey = $('decision-cards').contains(document.activeElement)
+    ? document.activeElement.dataset.focusKey
+    : null;
+  $('decision-eyebrow').textContent =
+    book().id === exampleBookId ? '記入例 · 文章や判断を変えて試せます' : '今、決めたいこと';
+  $('decision-question').textContent = question.text;
+  $('decision-description').textContent =
+    question.note || '同じ問いの案を並べて、選ぶ理由を残しましょう。';
+  const questions = book().nodes.filter(
+    (node) => node.id === book().rootId || children(book(), node.id).length,
+  );
+  $('comparison-question').replaceChildren(
+    ...questions.map((node) => {
+      const option = element('option', '', node.text);
+      option.value = node.id;
+      return option;
+    }),
+  );
+  $('comparison-question').value = question.id;
+  $('comparison-question').disabled = questions.length === 1;
+  $('comparison-question').hidden = questions.length === 1;
+  document.querySelector('label[for="comparison-question"]').hidden = questions.length === 1;
+  const decided = candidates.filter((node) => node.state !== 'growing').length;
+  $('decision-count').textContent = `${candidates.length}案 · ${decided}案を判断済み`;
+  $('decision-empty').hidden = candidates.length !== 0;
+  $('add-option').hidden = readOnly;
+  $('empty-add-option').hidden = readOnly;
+  $('empty-example').hidden = readOnly;
+  $('try-example').hidden = readOnly;
+  $('new-question').hidden = readOnly;
+  $('edit-question').textContent = readOnly ? '問いのメモを読む' : '問いを編集';
+  $('open-summary').disabled = !candidates.length;
+  $('decision-cards').replaceChildren(
+    ...candidates.map((node, index) => {
+      const card = element(
+        'article',
+        `decision-card ${node.state}${node.id === selectedId ? ' is-selected' : ''}`,
+      );
+      card.setAttribute('aria-label', `案${index + 1}：${node.text}`);
+      const top = element('div', 'decision-card-top');
+      top.append(
+        element('span', 'option-number', `案 ${String(index + 1).padStart(2, '0')}`),
+        element('span', `state-label ${node.state}`, STATES[node.state]),
+      );
+      const heading = element('h3');
+      const title = button(node.text, 'candidate-title', () => editCandidate(node.id));
+      title.dataset.focusKey = `${node.id}:title`;
+      heading.append(title);
+      const reason = element(
+        'p',
+        `candidate-note${node.note ? '' : ' is-empty'}`,
+        node.note ||
+          '何がよさそう？ 気になる点は？ 理由を残すと、あとで迷い直したときに役立ちます。',
+      );
+      const states = element('div', 'candidate-states');
+      states.setAttribute('role', 'group');
+      states.setAttribute('aria-label', `${node.text}の判断`);
+      for (const [state, label] of Object.entries(STATES)) {
+        const choice = button(label, '', () => {
+          if (!editorReady() || node.state === state) return;
+          transaction(() => {
+            selectedId = node.id;
+            selectedIds = new Set([node.id]);
+            selectedFrameId = null;
+            updateNode(book(), node.id, { state });
+          });
+        });
+        choice.dataset.focusKey = `${node.id}:${state}`;
+        choice.setAttribute('aria-pressed', String(node.state === state));
+        choice.disabled = readOnly;
+        states.append(choice);
+      }
+      const actions = element('div', 'candidate-actions');
+      const edit = button(
+        readOnly ? '内容・理由を読む →' : node.note ? '内容・理由を編集 →' : '理由を書く →',
+        'text-button',
+        () => editCandidate(node.id, true),
+      );
+      edit.dataset.focusKey = `${node.id}:edit`;
+      actions.append(edit);
+      if (children(book(), node.id).length)
+        actions.append(
+          button('この先の案を比べる', 'text-button', () => {
+            if (!editorReady()) return;
+            closeEditor(false);
+            comparisonId = node.id;
+            renderDecision();
+            $('decision-view').scrollTop = 0;
+            $('comparison-question').focus();
+          }),
+        );
+      card.append(
+        top,
+        heading,
+        element('p', 'candidate-note-label', 'メモ・判断の理由'),
+        reason,
+        states,
+        actions,
+      );
+      if (node.source !== 'human')
+        card.append(
+          element(
+            'span',
+            'source-label',
+            node.source === 'ai' ? 'AIの提案から追加' : 'AI案を自分で編集',
+          ),
+        );
+      return card;
+    }),
+  );
+  for (const note of [
+    $('decision-description'),
+    ...$('decision-cards').querySelectorAll('.candidate-note'),
+  ]) {
+    if (note.scrollHeight > note.clientHeight + 1) {
+      note.tabIndex = 0;
+      note.setAttribute('role', 'region');
+      note.setAttribute(
+        'aria-label',
+        note.id === 'decision-description'
+          ? '問いの背景・スクロールできます'
+          : 'メモ・判断の理由・スクロールできます',
+      );
+    } else {
+      note.removeAttribute('tabindex');
+      note.removeAttribute('role');
+      note.removeAttribute('aria-label');
+    }
+  }
+  if (focusKey)
+    [...$('decision-cards').querySelectorAll('[data-focus-key]')]
+      .find((el) => el.dataset.focusKey === focusKey)
+      ?.focus({ preventScroll: true });
+}
+function addOption() {
+  if (readOnly || !editorReady()) return;
+  openEntry('child', comparison().question.id);
+  $('entry-title').textContent = '比べる案を追加';
+}
+
+function useExample() {
+  if (readOnly || !editorReady()) return;
+  const existing = workspace.notebooks.find((item) => item.id === exampleBookId);
+  if (existing) {
+    closeEditor(false);
+    workspace.activeId = existing.id;
+    selectedId = existing.rootId;
+    selectedIds = new Set([selectedId]);
+    selectedFrameId = null;
+    focusId = selectedId;
+    viewMode = 'compare';
+    persist();
+    render();
+    $('decision-view').focus({ preventScroll: true });
+    return;
+  }
+  closeSidebar(false);
+  closeEditor(false);
+  const result = transaction(() => {
+    if (workspace.notebooks.length >= LIMITS.notebooks)
+      throw new Error(`保存できるノートは${LIMITS.notebooks}冊までです。`);
+    const added = templateNotebook();
+    exampleBookId = added.id;
+    workspace.notebooks.push(added);
+    workspace.activeId = added.id;
+    selectedId = added.rootId;
+    selectedIds = new Set([selectedId]);
+    selectedFrameId = null;
+    focusId = selectedId;
+  });
+  if (result.ok) {
+    setWorkspaceMode('compare');
+    toast('例を新しいノートにしました。文章や判断を変えて試せます。');
+  }
+}
+$('edit-question').addEventListener('click', () => editCandidate(comparison().question.id));
+$('new-question').addEventListener('click', () => openEntry('notebook'));
+$('mode-board').addEventListener('click', () => setWorkspaceMode('board'));
+$('mode-compare').addEventListener('click', () => setWorkspaceMode('compare'));
+$('comparison-question').addEventListener('change', () => {
+  const requested = $('comparison-question').value;
+  if (!editorReady()) {
+    $('comparison-question').value = comparison().question.id;
+    return;
+  }
+  closeEditor(false);
+  comparisonId = requested;
+  renderDecision();
+});
+for (const id of ['add-option', 'empty-add-option']) $(id).addEventListener('click', addOption);
+for (const id of ['try-example', 'empty-example']) $(id).addEventListener('click', useExample);
+$('open-summary').addEventListener('click', () => {
+  if (!editorReady()) return;
+  $('decision-summary').value = decisionSummary(book(), comparison().question.id);
+  $('summary-feedback').textContent = 'コピーして、普段のノートやチャットに貼り付けられます。';
+  $('summary-dialog').showModal();
+});
+$('copy-summary').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('decision-summary').value);
+    $('summary-feedback').textContent =
+      'コピーしました。普段のノートやチャットに貼り付けられます。';
+  } catch {
+    $('decision-summary').focus();
+    $('decision-summary').select();
+    $('summary-feedback').textContent =
+      '自動コピーが使えません。選択された文章を Ctrl / ⌘ + C でコピーしてください。';
+  }
+});
+$('download-summary').addEventListener('click', () => {
+  const blob = new Blob([$('decision-summary').value], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob),
+    link = document.createElement('a');
+  link.href = url;
+  link.download = '思考の芽-判断まとめ.md';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
 function registerAgentTools() {
   const context = document.modelContext ?? navigator.modelContext;
   if (!context?.registerTool) return;
