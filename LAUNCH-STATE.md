@@ -1,6 +1,17 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：背景3段階の比較 / version 13（2026-09-20）
+## 現在の配布：背景Aを正式採用 / version 14（2026-09-20）
+
+- 本人のA採用・デプロイ指示で、同じpublic URLへ `succeeded`（2026-09-20 05:21:15 UTC / 14:21:15 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
+- 配布コード: `e49bf2a017bc2d20397bf56e7e618401adb2d7f3`。GitHub/Sites mainへpush後、同一HEADの静的資産とmanifest14ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_158109021fbc8191b7978002b2aef1bc`。
+- Deployment: `appgdep_6aaf6d3db1048191893a97eeb591d244`。
+- 点方眼をA（muted色15%）に固定。比較用UI/処理/初回表示の例外を削除。旧比較URLからも同じ濃さになる。
+- ロジック: ビルド・96テスト成功、差分確認。視覚: ローカルPC通常/旧比較URLでalpha=0.15、比較バー撤去を確認。通常画面の画像確認。公開後ブラウザ再検証は未実施。
+- 梱包時にSitesプラグインのキャッシュが消失していたため、Windows標準tarで静的distとmanifestのみを梱包。内容一覧とmanifestを確認し、Sites保存時にも14ファイルの受理を確認。
+
+## 過去の配布：背景3段階の比較 / version 13（2026-09-20）
 
 - 同じpublic URLで `succeeded`（2026-09-20 05:07:08 UTC / 14:07:08 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
