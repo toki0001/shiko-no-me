@@ -1,6 +1,16 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：四つ角リサイズ / version 11（2026-09-20）
+## 現在の配布：ドット方眼・枠名編集 / version 12（2026-09-20）
+
+- 同じpublic URLで `succeeded`（2026-09-20 04:46:47 UTC / 13:46:47 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
+- 配布コード: `3cad66962020c6da9e21c696f0c5346f8eee7040`。GitHub/Sites mainへpushし、同一HEADの静的資産/manifest14ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_5753bb0b8e3c8191b38c9a4c478f7061`。
+- Deployment: `appgdep_6aaf652a5ad481919bee6de2ab579425`。
+- 点方眼を見える濃さへ、追加バーは601px以上でPCと同じ左下へ、枠名タップでその場の入力欄へ。名前ドラッグ移動・保存・Undoを維持。
+- 96テスト・独立コードレビューPASS。ローカルPC/768/601/600/390幅、直接編集/確定/取消/保存復元/移動を確認。共有デモ25カードで名前入力欄0。実タッチ/実IME・公開後のブラウザ再検証は未実施。
+
+## 過去の配布：四つ角リサイズ / version 11（2026-09-20）
 
 - 同じpublic URLで `succeeded`（2026-09-20 04:30:15 UTC / 13:30:15 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
