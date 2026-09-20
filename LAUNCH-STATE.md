@@ -1,6 +1,17 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：背景Aを正式採用 / version 14（2026-09-20）
+## 現在の配布：編集パネルの固定見出し / version 15（2026-09-20）
+
+- 同じpublic URLで `succeeded`（2026-09-20 08:18:30 UTC / 17:18:30 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
+- 配布コード: `64d63c7172f0cfd120d99d489b9964e3200e1048`。GitHub/Sites mainへpush後、同一HEADの静的資産/manifest14ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_18fc659912488191adb2585dc1e4e4e8`。
+- Deployment: `appgdep_6aaf96c89ec481918b59edc766d1ca82`。
+- 右パネル見出し/×の32pxの浮きを修正。見出しを本文スクロール領域の外へ分離、CSSの重複/余白/sticky補正を撤去。幅別パネル配置はboard.cssへ集約。
+- ロジック: 96テスト成功・独立レビューPASS。視覚/実操作: ローカルPC/タブレット/スマホ/低い画面、先頭/末尾、詳細展開、カード切替、×で閉じる、境界両側を確認。実機タッチ/キーボード表示と公開後ブラウザ再検証は未実施。
+- 修正前に失敗するブラウザ実測チェックスクリプトとAGENTS.mdの必須ゲートを追加。共通UI台帳G2/P8とオーナーメモリにも書き戻し。外部AI会話の取り込みは構想のみ・未実装。
+
+## 過去の配布：背景Aを正式採用 / version 14（2026-09-20）
 
 - 本人のA採用・デプロイ指示で、同じpublic URLへ `succeeded`（2026-09-20 05:21:15 UTC / 14:21:15 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
