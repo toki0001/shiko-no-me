@@ -1,6 +1,16 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：Ver1.01 / version 10（2026-09-20）
+## 現在の配布：四つ角リサイズ / version 11（2026-09-20）
+
+- 同じpublic URLで `succeeded`（2026-09-20 04:30:15 UTC / 13:30:15 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
+- 配布コード: `2507dea397bdf0b7b57d7fa96c18578063dc41be`。GitHub/Sites mainへpush後、同一HEADの14ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_6df1b06061f88191a77d318ca9779241`。
+- Deployment: `appgdep_6aaf6148285881918f376c85881006bf`。
+- 枠/カードの四つ角からサイズ変更。大きな四角いマークを廃止し、透明な角の操作領域とカーソルで案内。位置/寸法を保存・Undo。カードの大きさに線/枠所属/整列が追従。
+- ロジック93テスト・独立コードレビューPASS。ローカルPC8角ドラッグ・取消/Redo・再読込・Escape・キーボード確認。390幅のタッチ模擬/25%/最小カードで中央選択を維持。閲覧専用デモ25カード・リサイズハンドル0。詳細QA.md。実スマホ未検証、今回の公開後のブラウザ再検証は未実施。
+
+## 過去の配布：Ver1.01 / version 10（2026-09-20）
 
 - 本人の「ショートカットらへんはデプロイまで進めていい」により公開。同じURL・publicで `succeeded`（2026-09-20 02:52:38 UTC / 11:52:38 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
