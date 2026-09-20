@@ -86,7 +86,7 @@ let selectedIds = new Set(),
   selectedFrameId = null,
   multipleMode = false,
   viewMode =
-    (firstVisit && new URLSearchParams(location.search).get('background') !== 'preview') || new URLSearchParams(location.search).get('view') === 'compare'
+    firstVisit || new URLSearchParams(location.search).get('view') === 'compare'
       ? 'compare'
       : 'board',
   draft = null;
@@ -1369,7 +1369,6 @@ function renderBoardTools() {
   $('quick-edit').textContent = frame ? '枠を編集' : '選んだカードを編集';
   $('quick-edit').disabled = !frame && selectedIds.size !== 1;
   $('board').hidden = viewMode !== 'board';
-  $('background-preview').hidden = viewMode !== 'board' || new URLSearchParams(location.search).get('background') !== 'preview';
   $('outline').hidden = viewMode !== 'outline';
   $('board-navigation').hidden = viewMode !== 'board';
   $('board-actions').hidden = viewMode !== 'board';
@@ -2014,26 +2013,3 @@ if (readOnly) {
   $('save-status').textContent = '保存データの確認が必要';
 } else if (savedRaw === null) persist();
 registerAgentTools();
-
-// Review three lighter dot strengths without changing notebook data or personal settings.
-const backgroundReviewUrl = new URL(location.href);
-if (backgroundReviewUrl.searchParams.get('background') === 'preview') {
-  const strengths = { a: '15%', b: '25%', c: '35%' };
-  const applyBackground = (choice) => {
-    $('board').style.setProperty('--dot-opacity', strengths[choice]);
-    for (const button of document.querySelectorAll('[data-dot-choice]'))
-      button.setAttribute('aria-pressed', String(button.dataset.dotChoice === choice));
-  };
-  $('background-preview').hidden = viewMode !== 'board';
-  const requested = backgroundReviewUrl.searchParams.get('dots');
-  applyBackground(Object.hasOwn(strengths, requested) ? requested : 'b');
-  for (const button of document.querySelectorAll('[data-dot-choice]')) {
-    button.addEventListener('click', () => {
-      const choice = button.dataset.dotChoice;
-      applyBackground(choice);
-      const url = new URL(location.href);
-      url.searchParams.set('dots', choice);
-      window.history.replaceState(null, '', url);
-    });
-  }
-}
