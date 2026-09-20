@@ -1,5 +1,9 @@
 import {
   CARD,
+  CORNERS,
+  cardSize,
+  cardRect,
+  resizedRect,
   SIDES,
   boundsOf,
   connector,
@@ -85,8 +89,8 @@ export class BoardView {
       : null;
     const focusPart = focused?.dataset.side
       ? `.port-${focused.dataset.side}`
-      : focused?.classList.contains('frame-resize')
-        ? '.frame-resize'
+      : focused?.dataset.corner
+        ? `[data-corner="${focused.dataset.corner}"]`
         : focused?.classList.contains('frame-edit')
           ? '.frame-edit'
           : focusedFrame
@@ -121,30 +125,7 @@ export class BoardView {
       edit.setAttribute('aria-label', `${frame.title}の分類枠を編集`);
       edit.addEventListener('click', () => this.callbacks.frame(frame.id, true));
       box.append(edit);
-      const resize = el('button', 'frame-resize', '↘');
-      resize.type = 'button';
-      resize.dataset.resize = frame.id;
-      resize.setAttribute('aria-label', `${frame.title}の大きさを変更。矢印キーでも調整できます`);
-      resize.addEventListener('keydown', (event) => {
-        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const step = event.shiftKey ? 80 : 24;
-        this.callbacks.gesture({
-          type: 'resize',
-          frameId: frame.id,
-          width:
-            frame.width +
-            (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0),
-          height:
-            frame.height + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0),
-        });
-        this.frameElements
-          .get(frame.id)
-          ?.querySelector('.frame-resize')
-          .focus({ preventScroll: true });
-      });
-      box.append(resize);
+      this.addResizeCorners(box, frame, true);
       this.frames.append(box);
       this.frameElements.set(frame.id, box);
     }
@@ -173,6 +154,7 @@ export class BoardView {
         port.addEventListener('click', () => this.callbacks.add(node.id, side));
         card.append(port);
       }
+      this.addResizeCorners(card, node, false);
       card.style.setProperty('--node-depth', depth);
       this.cards.append(card);
       this.cardElements.set(node.id, card);
@@ -189,15 +171,45 @@ export class BoardView {
       (replacement?.querySelector(focusPart) ?? this.container).focus({ preventScroll: true });
     }
   }
+  addResizeCorners(element, item, frame) {
+    if (this.callbacks.readOnly?.()) return;
+    const names = { nw: '左上', ne: '右上', sw: '左下', se: '右下' };
+    for (const corner of CORNERS) {
+      const handle = el('button', `resize-corner ${frame ? 'frame-resize' : 'card-resize'} corner-${corner}`);
+      handle.type = 'button';
+      handle.dataset.corner = corner;
+      handle.title = 'ドラッグでサイズ変更';
+      handle.setAttribute('aria-label', `${frame ? item.title : item.text}の${names[corner]}からサイズ変更。矢印キーでも調整できます`);
+      handle.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || event.isComposing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.callbacks.readOnly?.() || !this.callbacks.ready()) return;
+        const step = event.shiftKey ? 80 : 24;
+        const dx = event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0;
+        const dy = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0;
+        const rect = resizedRect(frame ? item : cardRect(item), corner, dx, dy,
+          frame ? { width: 280, height: 200 } : undefined, frame ? 200000 : undefined);
+        this.callbacks.gesture({ type: frame ? 'resize' : 'card-resize', frameId: frame ? item.id : undefined,
+          cardId: frame ? undefined : item.id, corner, width: rect.width, height: rect.height });
+      });
+      element.append(handle);
+    }
+  }
   drawGeometry(shown = new Set(this.rows.map((row) => row.node.id)), preview = null) {
     const positions = preview?.positions ?? new Map(),
-      frameRects = preview?.frames ?? new Map();
+      frameRects = preview?.frames ?? new Map(),
+      sizes = preview?.sizes ?? new Map();
     for (const node of this.book.nodes) {
       const card = this.cardElements.get(node.id),
         position = positions.get(node.id) ?? node.position;
       if (card) {
         card.style.left = `${position.x}px`;
         card.style.top = `${position.y}px`;
+        const size = sizes.get(node.id) ?? cardSize(node);
+        card.style.width = `${size.width}px`;
+        card.style.height = `${size.height}px`;
+        card.style.setProperty('--card-lines', Math.max(1, Math.floor((size.height - 64) / 24.8)));
       }
     }
     for (const frame of this.book.frames ?? []) {
@@ -217,8 +229,8 @@ export class BoardView {
       if (!node.parentId || !shown.has(node.id) || !shown.has(node.parentId)) continue;
       const parent = byId.get(node.parentId);
       const d = connector(
-        { ...parent, position: positions.get(parent.id) ?? parent.position },
-        { ...node, position: positions.get(node.id) ?? node.position },
+        { ...parent, position: positions.get(parent.id) ?? parent.position, size: sizes.get(parent.id) ?? parent.size },
+        { ...node, position: positions.get(node.id) ?? node.position, size: sizes.get(node.id) ?? node.size },
       );
       const hit = svg('path');
       hit.setAttribute('d', d);
@@ -300,8 +312,8 @@ export class BoardView {
     const scale = Math.max(0.85, this.view.scale);
     this.view = {
       scale,
-      x: (this.container.clientWidth - CARD.width * scale) / 2 - node.position.x * scale,
-      y: (this.container.clientHeight - CARD.height * scale) / 2 - node.position.y * scale,
+      x: (this.container.clientWidth - cardSize(node).width * scale) / 2 - node.position.x * scale,
+      y: (this.container.clientHeight - cardSize(node).height * scale) / 2 - node.position.y * scale,
     };
     this.transform();
     if (focus)
@@ -343,7 +355,7 @@ export class BoardView {
       ids = [],
       frameId;
     if (card && event.button === 0) {
-      type = 'cards';
+      type = event.target.closest('.resize-corner') ? 'card-resize' : 'cards';
       ids = this.selectedIds.has(card.dataset.nodeId)
         ? [...this.selectedIds]
         : [card.dataset.nodeId];
@@ -359,6 +371,7 @@ export class BoardView {
       ids,
       frameId,
       cardId: card?.dataset.nodeId,
+      corner: event.target.closest('.resize-corner')?.dataset.corner,
       x: event.clientX,
       y: event.clientY,
       view: { ...this.view },
@@ -372,6 +385,8 @@ export class BoardView {
       this.gesture,
       new Set(this.rows.map((row) => row.node.id)),
     );
+    if (type === 'resize' || type === 'card-resize')
+      this.container.style.cursor = ['nw', 'se'].includes(this.gesture.corner) ? 'nwse-resize' : 'nesw-resize';
   }
   pointerMove(event) {
     if (!this.pointers.has(event.pointerId)) return;
@@ -418,7 +433,8 @@ export class BoardView {
     const g = this.gesture;
     if (!g?.moved || g.type === 'pan') return;
     const positions = new Map(),
-      frames = new Map();
+      frames = new Map(),
+      sizes = new Map();
     if (g.type === 'cards' || g.type === 'frame')
       for (const node of this.book.nodes)
         if (g.ids.includes(node.id))
@@ -428,15 +444,17 @@ export class BoardView {
       frames.set(
         frame.id,
         g.type === 'resize'
-          ? {
-              ...frame,
-              width: Math.max(280, frame.width + g.dx),
-              height: Math.max(200, frame.height + g.dy),
-            }
+          ? resizedRect(frame, g.corner, g.dx, g.dy, { width: 280, height: 200 }, 200000)
           : { ...frame, x: frame.x + g.dx, y: frame.y + g.dy },
       );
     }
-    this.drawGeometry(undefined, { positions, frames });
+    if (g.type === 'card-resize') {
+      const node = this.book.nodes.find((item) => item.id === g.cardId);
+      const rect = resizedRect(cardRect(node), g.corner, g.dx, g.dy);
+      positions.set(node.id, { x: rect.x, y: rect.y });
+      sizes.set(node.id, { width: rect.width, height: rect.height });
+    }
+    this.drawGeometry(undefined, { positions, frames, sizes });
     this.drawAlignmentGuides(g.guides ?? []);
   }
   alignDrag(g, event) {
@@ -477,8 +495,9 @@ export class BoardView {
       return;
     }
     const g = this.gesture;
-    if (g?.moved && g.alignment && !this.callbacks.readOnly?.()) this.alignDrag(g, event);
+    if (g?.moved && (g.alignment || g.type === 'resize' || g.type === 'card-resize') && !this.callbacks.readOnly?.()) this.alignDrag(g, event);
     this.gesture = null;
+    if (this.container) this.container.style.cursor = '';
     this.alignmentGuides?.replaceChildren();
     if (this.dragFrame) cancelAnimationFrame(this.dragFrame);
     this.dragFrame = null;
@@ -489,20 +508,24 @@ export class BoardView {
         this.callbacks.viewChanged?.(g.view);
         return;
       }
-      if (g.type === 'resize') {
-        const frame = this.book.frames.find((item) => item.id === g.frameId);
-        this.callbacks.gesture({
-          type: 'resize',
-          frameId: g.frameId,
-          width: frame.width + g.dx,
-          height: frame.height + g.dy,
-        });
+      if (g.type === 'resize' || g.type === 'card-resize') {
+        const frame = g.type === 'resize';
+        const original = frame ? this.book.frames.find((item) => item.id === g.frameId)
+          : cardRect(this.book.nodes.find((item) => item.id === g.cardId));
+        const rect = resizedRect(original, g.corner, g.dx, g.dy,
+          frame ? { width: 280, height: 200 } : undefined, frame ? 200000 : undefined);
+        this.callbacks.gesture({ ...g, width: rect.width, height: rect.height });
       } else if (g.type !== 'pan') this.callbacks.gesture(g);
       this.drawGeometry();
       return;
     }
     if (g.type === 'frame' || g.type === 'resize') {
       this.callbacks.frame(g.frameId);
+      return;
+    }
+    if (g.type === 'card-resize') {
+      this.lastTap = null;
+      this.callbacks.select(g.cardId, false);
       return;
     }
     if (g.type === 'cards') {
@@ -541,6 +564,7 @@ export class BoardView {
     }
   }
   cancelPreview() {
+    if (this.container) this.container.style.cursor = '';
     if (this.dragFrame) cancelAnimationFrame(this.dragFrame);
     this.dragFrame = null;
     this.gesture = null;
@@ -556,8 +580,7 @@ export class BoardView {
     if (
       event.defaultPrevented ||
       event.isComposing ||
-      event.target.closest('textarea,input') ||
-      event.target.closest('.frame-resize')
+      event.target.closest('textarea,input')
     )
       return;
     if (event.key === 'Escape') {
@@ -565,6 +588,7 @@ export class BoardView {
       this.callbacks.escape();
       return;
     }
+    if (event.target.closest('.resize-corner')) return;
     const card = event.target.closest('.thought-card'),
       frame = event.target.closest('.classification-frame');
     if (event.altKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {

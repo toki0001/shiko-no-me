@@ -1,5 +1,9 @@
 // Spatial metadata is independent of the thought tree. No parent changes here.
 export const CARD = Object.freeze({ width: 224, height: 116 });
+export const CARD_MIN = Object.freeze({ width: 160, height: 96 });
+export const CORNERS = Object.freeze(['nw', 'ne', 'sw', 'se']);
+export const cardSize = (node) => node.size ?? CARD;
+export const cardRect = (node) => ({ ...node.position, ...cardSize(node) });
 export const SIDES = Object.freeze(['right', 'bottom', 'left', 'top']);
 export const PALETTE = Object.freeze([
   ['#4f7d62', '緑'],
@@ -25,7 +29,7 @@ export function alignmentContext(book, gesture, visibleIds) {
     targets: [
       ...book.nodes
         .filter((node) => !movingIds.has(node.id) && (!visibleIds || visibleIds.has(node.id)))
-        .map((node) => ({ ...node.position, ...CARD })),
+        .map(cardRect),
       ...(book.frames ?? [])
         .filter((item) => item.id !== frame?.id && !item.nodeIds.some((id) => movingIds.has(id)))
         .map((item) => ({ x: item.x, y: item.y, width: item.width, height: item.height })),
@@ -98,6 +102,13 @@ const idLike = (value) => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.
 export function validateBoard(book) {
   const ids = new Set(book.nodes.map((node) => node.id));
   for (const node of book.nodes) {
+    if (node.size !== undefined)
+      check(
+        object(node.size) && Number.isFinite(node.size.width) && Number.isFinite(node.size.height) &&
+        node.size.width >= CARD_MIN.width && node.size.height >= CARD_MIN.height &&
+        node.size.width <= 2000 && node.size.height <= 2000,
+        'カードの大きさが不正です。',
+      );
     if (node.position !== undefined)
       check(
         object(node.position) && coordinate(node.position.x) && coordinate(node.position.y),
@@ -191,9 +202,10 @@ export function freePosition(book, parentId, side = 'right') {
   const parent = book.nodes.find((node) => node.id === parentId);
   check(parent?.position, '追加元のカードが見つかりません。');
   const horizontal = side === 'right' || side === 'left';
+  const size = cardSize(parent);
   const base = {
-    x: parent.position.x + (horizontal ? (side === 'right' ? 332 : -332) : 0),
-    y: parent.position.y + (!horizontal ? (side === 'bottom' ? 200 : -200) : 0),
+    x: parent.position.x + (horizontal ? (side === 'right' ? size.width + 108 : -332) : 0),
+    y: parent.position.y + (!horizontal ? (side === 'bottom' ? size.height + 84 : -200) : 0),
   };
   // Keep every existing card still. Search perpendicular to the chosen side.
   for (let index = 0; index <= book.nodes.length * 2 + 2; index++) {
@@ -205,7 +217,7 @@ export function freePosition(book, parentId, side = 'right') {
     if (
       coordinate(point.x) &&
       coordinate(point.y) &&
-      !book.nodes.some((node) => node.position && overlaps(point, node.position))
+      !book.nodes.some((node) => node.position && overlaps(point, cardRect(node)))
     )
       return point;
   }
@@ -243,8 +255,8 @@ export function nodesInside(book, frame) {
         node.position &&
         node.position.x >= frame.x &&
         node.position.y >= frame.y + 44 &&
-        node.position.x + CARD.width <= frame.x + frame.width &&
-        node.position.y + CARD.height <= frame.y + frame.height,
+        node.position.x + cardSize(node).width <= frame.x + frame.width &&
+        node.position.y + cardSize(node).height <= frame.y + frame.height,
     )
     .map((node) => node.id);
 }
@@ -260,10 +272,10 @@ export function createFrame(book, ids, title = '新しい分類') {
     title,
     x,
     y,
-    width: Math.max(280, Math.max(...members.map((node) => node.position.x)) + CARD.width + 32 - x),
+    width: Math.max(280, Math.max(...members.map((node) => node.position.x + cardSize(node).width)) + 32 - x),
     height: Math.max(
       200,
-      Math.max(...members.map((node) => node.position.y)) + CARD.height + 32 - y,
+      Math.max(...members.map((node) => node.position.y + cardSize(node).height)) + 32 - y,
     ),
     color: PALETTE[0][0],
     nodeIds: members.map((node) => node.id),
@@ -281,19 +293,42 @@ export function moveFrame(book, frameId, dx, dy) {
   frame.y += dy;
   syncFrameMembership(book);
 }
-export function resizeFrame(book, frameId, width, height) {
+// Keep the opposite corner fixed, including when a minimum or maximum is reached.
+export function resizedRect(rect, corner, dx, dy, minimum = CARD_MIN, maximum = 2000) {
+  check(CORNERS.includes(corner) && Number.isFinite(dx) && Number.isFinite(dy), 'サイズ変更の位置が不正です。');
+  const west = corner.includes('w'), north = corner.includes('n');
+  const right = rect.x + rect.width, bottom = rect.y + rect.height;
+  const width = Math.max(west ? Math.max(minimum.width, right - extent) : minimum.width,
+    Math.min(west ? Math.min(maximum, right + extent) : maximum, rect.width + (west ? -dx : dx)));
+  const height = Math.max(north ? Math.max(minimum.height, bottom - extent) : minimum.height,
+    Math.min(north ? Math.min(maximum, bottom + extent) : maximum, rect.height + (north ? -dy : dy)));
+  return { x: west ? right - width : rect.x, y: north ? bottom - height : rect.y, width, height };
+}
+export function resizeCard(book, nodeId, width, height, corner = 'se') {
+  const node = book.nodes.find((item) => item.id === nodeId);
+  check(node?.position, 'カードが見つかりません。');
+  const old = cardRect(node);
+  const rect = resizedRect(old, corner, (width - old.width) * (corner.includes('w') ? -1 : 1),
+    (height - old.height) * (corner.includes('n') ? -1 : 1));
+  node.position = { x: rect.x, y: rect.y };
+  node.size = { width: rect.width, height: rect.height };
+  syncFrameMembership(book);
+}
+export function resizeFrame(book, frameId, width, height, corner = 'se') {
   const frame = book.frames?.find((item) => item.id === frameId);
   check(frame, '分類枠が見つかりません。');
   check(Number.isFinite(width) && Number.isFinite(height), '分類枠の大きさが不正です。');
-  frame.width = Math.max(280, Math.min(extent, width));
-  frame.height = Math.max(200, Math.min(extent, height));
+  Object.assign(frame, resizedRect(frame, corner,
+    (width - frame.width) * (corner.includes('w') ? -1 : 1),
+    (height - frame.height) * (corner.includes('n') ? -1 : 1),
+    { width: 280, height: 200 }, extent));
   syncFrameMembership(book);
 }
 export function syncFrameMembership(book) {
   for (const frame of book.frames ?? []) frame.nodeIds = nodesInside(book, frame);
 }
 export function boundsOf(nodes, frames = []) {
-  const rects = [...nodes.map((node) => ({ ...node.position, ...CARD })), ...frames];
+  const rects = [...nodes.map(cardRect), ...frames];
   if (!rects.length) return { x: 0, y: 0, width: CARD.width, height: CARD.height };
   const x = Math.min(...rects.map((rect) => rect.x)),
     y = Math.min(...rects.map((rect) => rect.y));
@@ -305,14 +340,15 @@ export function boundsOf(nodes, frames = []) {
   };
 }
 export function connector(parent, child) {
+  const p = cardSize(parent), c = cardSize(child);
   const a = parent.position,
     b = child.position,
     side = child.branchSide ?? 'right';
   const points = {
-    right: [a.x + CARD.width, a.y + CARD.height / 2, b.x, b.y + CARD.height / 2],
-    left: [a.x, a.y + CARD.height / 2, b.x + CARD.width, b.y + CARD.height / 2],
-    bottom: [a.x + CARD.width / 2, a.y + CARD.height, b.x + CARD.width / 2, b.y],
-    top: [a.x + CARD.width / 2, a.y, b.x + CARD.width / 2, b.y + CARD.height],
+    right: [a.x + p.width, a.y + p.height / 2, b.x, b.y + c.height / 2],
+    left: [a.x, a.y + p.height / 2, b.x + c.width, b.y + c.height / 2],
+    bottom: [a.x + p.width / 2, a.y + p.height, b.x + c.width / 2, b.y],
+    top: [a.x + p.width / 2, a.y, b.x + c.width / 2, b.y + c.height],
   }[side];
   const [x1, y1, x2, y2] = points,
     horizontal = side === 'left' || side === 'right';

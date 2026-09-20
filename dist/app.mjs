@@ -29,6 +29,7 @@ import {
   createFrame,
   moveFrame,
   resizeFrame,
+  resizeCard,
   syncFrameMembership,
   setLineColor,
   PALETTE,
@@ -1463,14 +1464,16 @@ function commitGesture(gesture) {
       if (gesture.type === 'cards') moveCards(book(), gesture.ids, gesture.dx, gesture.dy);
       else if (gesture.type === 'frame') moveFrame(book(), gesture.frameId, gesture.dx, gesture.dy);
       else if (gesture.type === 'resize')
-        resizeFrame(book(), gesture.frameId, gesture.width, gesture.height);
+        resizeFrame(book(), gesture.frameId, gesture.width, gesture.height, gesture.corner);
+      else if (gesture.type === 'card-resize')
+        resizeCard(book(), gesture.cardId, gesture.width, gesture.height, gesture.corner);
       syncFrameMembership(book());
     },
     { inspector: false },
   );
   if (result.ok)
     $('board-status').textContent =
-      gesture.type === 'resize' ? '分類枠の大きさを変更しました' : '位置を変更しました';
+      gesture.type === 'resize' ? '分類枠の大きさを変更しました' : gesture.type === 'card-resize' ? 'カードの大きさを変更しました' : '位置を変更しました';
 }
 function selectFrame(id, edit = false) {
   if (!editorReady()) return;
