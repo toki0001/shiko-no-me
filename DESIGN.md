@@ -1,5 +1,9 @@
 # 思考の芽 — 提出版の設計
 
+## 編集パネルの固定見出し（2026-09-20）
+
+見出しと×はパネル上端の固定行。本文だけを兄弟のinspector-body内でスクロールする。外枠のpadding・sticky補正で位置を作らない。配置CSSはboard.cssへ集約。PCは既存360px右パネル、940px以下は高さ85dvhの下部パネル。カード変更時は本文スクロールを先頭へ戻す。回帰確認はdocs/inspector-regression.mdとscripts/check-inspector-layout.mjs。共通CSS/画面幅/編集欄を変えた場合も必ず実行する。
+
 ## 背景濃度の確定（2026-09-20、Aを採用）
 
 本人が実画面で比較してAを選択。点方眼はmuted色15%に固定し、24px間隔・半径1.15pxは維持。比較用のバー・CSS・JS・初回表示の例外を撤去。旧`?background=preview&dots=...`でも濃さはAで統一する。ノート内容・Undo・個人設定は変更しない。

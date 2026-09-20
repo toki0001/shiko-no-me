@@ -484,7 +484,7 @@ function renderEditor() {
   $('inspector').inert = false;
   const node = activeNode();
   if ($('inspector').dataset.nodeId !== node.id) {
-    $('inspector').scrollTop = 0;
+    $('inspector-body').scrollTop = 0;
     $('node-text').scrollTop = 0;
     $('node-note').scrollTop = 0;
     $('inspector').dataset.nodeId = node.id;
