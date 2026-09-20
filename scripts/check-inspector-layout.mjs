@@ -14,9 +14,16 @@ export async function measureInspector(tab) {
     };
     const p = rect(panel), h = rect(header), c = rect(close);
     const hit = document.elementFromPoint((c.left + c.right) / 2, (c.top + c.bottom) / 2);
+    const paper = document.querySelector('.paper');
     return {
       panel: p, header: h, close: c, body: body && rect(body),
       mode: getComputedStyle(panel).position,
+      modal: panel.getAttribute('aria-modal') === 'true', paperInert: paper.hasAttribute('inert'),
+      paper: rect(paper), boardVisible: !document.querySelector('#board').hidden,
+      phoneActionsVisible: document.querySelector('.mobile-actions').getBoundingClientRect().height > 0,
+      boardActionsVisible: document.querySelector('.tree-actions').getBoundingClientRect().height > 0,
+      boardActions: rect(document.querySelector('.tree-actions')),
+      saveStatus: rect(document.querySelector('.topbar .save-status')),
       borderTop: +getComputedStyle(panel).borderTopWidth.replace('px', ''),
       bodyScroll: body?.scrollTop, bodyMaxScroll: body && body.scrollHeight - body.clientHeight,
       panelScroll: panel.scrollTop, headerInsideBody: body?.contains(header),
@@ -40,9 +47,21 @@ export function assertInspectorLayout(m) {
   assert.ok(m.pageWidth <= m.viewport.width + 1, 'Panel causes horizontal page overflow');
 }
 
-export async function checkInspectorLayout(tab) {
+export async function checkInspectorLayout(tab, { phone } = {}) {
   const initial = await measureInspector(tab);
   assertInspectorLayout(initial);
+  if (phone !== undefined) {
+    assert.equal(initial.mode, phone ? 'fixed' : 'absolute', 'Inspector uses the wrong presentation');
+    assert.equal(initial.modal, phone, 'Modal behavior disagrees with the presentation');
+    assert.equal(initial.paperInert, phone, 'Board interactivity disagrees with the presentation');
+    if (!phone) assert.ok(initial.paper.right <= initial.panel.left + 1, 'Inspector covers the board');
+    if (initial.boardVisible) {
+      assert.equal(initial.phoneActionsVisible, phone, 'Add bar switches at a different breakpoint');
+      assert.equal(initial.boardActionsVisible, !phone, 'Board actions switch at a different breakpoint');
+      if (!phone) assert.ok(initial.saveStatus.bottom <= initial.boardActions.top + 1,
+        'Save status overlaps the add bar beside the inspector');
+    }
+  }
   assert.ok(initial.bodyMaxScroll > 1, 'Use long content or expand details so the body actually scrolls');
   const { body } = initial;
   const wheel = async (scrollY) => {

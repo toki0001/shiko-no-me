@@ -118,7 +118,7 @@
 .decision-mode .topbar .save-status { bottom: 12px; z-index: 10; }
 .shared-view #try-example, .shared-view .color-options { display: none !important; }
 .shared-view .decision-view { padding-bottom: 140px; }
-@media(min-width:941px) { .workspace:has(.inspector.is-open) .decision-cards { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); } }
+@media not all and (max-width:600px) and (orientation:portrait) { .workspace:has(.inspector.is-open) .decision-cards { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); } }
 @media(max-width:940px) { .mode-caption { display: none; } .decision-view { padding-inline: 20px; } .preview-version { font-size: .62rem; } }
 @media(max-width:600px) {
   .preview-version { display: none; }
@@ -182,5 +182,17 @@
   .shortcut-row .button, .shortcut-row .text-button { min-height: 44px; }
 }
 
-/* Only phone widths use the full-width action bar. */
-@media(min-width:601px) { .tree-actions { display: flex; } .mobile-actions { display: none; } }
+/* Only a narrow portrait viewport uses the full-width action bar. */
+@media not all and (max-width:600px) and (orientation:portrait) { .tree-actions { display: flex; } .mobile-actions { display: none; } }
+
+/* Keep board controls within the remaining canvas beside a narrow inspector. */
+@media(max-width:900px) {
+  .workspace:has(.inspector.is-open) .inspector-top { padding-inline: 16px; }
+  .workspace:has(.inspector.is-open) .inspector-body { padding-inline: 16px; }
+  .workspace:has(.inspector.is-open) .fit-label-full { display: none; }
+  .workspace:has(.inspector.is-open) .fit-label-short { display: inline; }
+  .workspace:has(.inspector.is-open) .zoom-controls { gap: 0; }
+  .workspace:has(.inspector.is-open) #zoom-value { width: 40px; }
+  .workspace:has(.inspector.is-open) .tree-actions { max-width: calc(100% - 24px); flex-wrap: wrap; }
+  .workspace:has(.inspector.is-open) .tree-actions .button { padding-inline: 6px; font-size: .8125rem; }
+}

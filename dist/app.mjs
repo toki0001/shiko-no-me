@@ -94,7 +94,8 @@ let composingTarget = null;
 let comparisonId = null,
   comparisonBookId = null,
   exampleBookId = firstExample?.id;
-const compact = matchMedia('(max-width: 940px)');
+// Keep in sync with the phone-only layout queries in the stylesheets.
+const compact = matchMedia('(max-width:600px) and (orientation:portrait)');
 let entryParentId,
   entryMode,
   aiParentId,
@@ -1106,17 +1107,15 @@ document.addEventListener('keydown', (event) => {
     trapFocus(event, $('inspector'));
 });
 compact.addEventListener('change', () => {
-  if (composingTarget) {
-    setEditorModal(compact.matches && $('inspector').classList.contains('is-open'));
-    return;
-  }
-  if (!compact.matches) {
-    closeSidebar();
-    closeEditor();
-  } else {
-    setEditorModal($('inspector').classList.contains('is-open'));
-  }
+  // Preserve the open card and draft text when rotating or resizing the window.
+  // A note drawer cannot remain modal behind a newly modal card editor.
+  closeSidebar();
+  const open = $('inspector').classList.contains('is-open');
+  setEditorModal(compact.matches && open);
+  if (compact.matches && open && !$('inspector').contains(document.activeElement))
+    $('close-inspector').focus({ preventScroll: true });
 });
+
 function exportAll() {
   if (!compositionReady()) return;
   if (draft && !commitDraft()) return;
