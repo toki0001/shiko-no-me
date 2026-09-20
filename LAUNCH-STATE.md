@@ -1,6 +1,17 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：ドット方眼・枠名編集 / version 12（2026-09-20）
+## 現在の配布：背景3段階の比較 / version 13（2026-09-20）
+
+- 同じpublic URLで `succeeded`（2026-09-20 05:07:08 UTC / 14:07:08 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
+- 比較URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site/?background=preview
+- 配布コード: `9aa1596e2131dca036e0b32f8d12cda4b2eceb32`。GitHub/Sites mainへpush後、同一HEADの静的資産/manifest14ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_79d7eee8eaa0819189b468b076b2f38a`。
+- Deployment: `appgdep_6aaf69ef0b9c8191833c5340b96f7c84`。
+- 点方眼を旧55%からA15%/B25%/C35%で比較。通常は暫定B。最終採用は本人の選択待ち。比較バーは比較URLのボードだけに表示し、選択はURLに保持。
+- ロジック: 96テスト・独立レビューPASS。視覚/実操作: ローカルPC3案と390幅、切替/再読込保持/通常URL非表示/Undo不変を確認。公開後のブラウザ再検証は未実施。
+
+## 過去の配布：ドット方眼・枠名編集 / version 12（2026-09-20）
 
 - 同じpublic URLで `succeeded`（2026-09-20 04:46:47 UTC / 13:46:47 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site

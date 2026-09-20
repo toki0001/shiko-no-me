@@ -1,5 +1,7 @@
 # 思考の芽 Ver1.01
 
+背景比較（9月20日）：[3段階を実画面で比較](https://shiko-no-me-notebook.tokkey20.chatgpt.site/?background=preview)。Aかなり薄い・B薄い・C少し薄い。すべて従来より薄く、通常表示は暫定B。最終の濃さは本人の選択待ち。
+
 追加公開（9月20日）：ドット方眼の背景、タブレットもPCと同じ左下の追加バー、枠の名前の直接編集。枠名はタップ→入力→Enter/外側で確定、Escapeで取消。枠を移動する場合は名前をドラッグします。
 
 2026-09-20。**ショートカットまで公開済み。** [公開サイトを開く](https://shiko-no-me-notebook.tokkey20.chatgpt.site)。配布記録はLAUNCH-STATE.md。
