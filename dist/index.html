@@ -1009,7 +1009,7 @@ dialog h3 {
 .notebook-heading h1 { font-size: 1.125rem; margin: 0; }
 .notebook-heading .eyebrow, .notebook-note { display: none; }
 .outline-tools { padding: 0 24px; margin: 0; border: 0; }
-.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(var(--strong) .8px, transparent .8px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
+.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) 55%, transparent) 1.15px, transparent 1.3px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
 .board:active { cursor: grabbing; }
 .board textarea { user-select: text; touch-action: manipulation; }
 .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; }
@@ -1101,6 +1101,10 @@ dialog h3 {
   .board-toolbar { padding-block: 2px; }
   .board-navigation { position: absolute; bottom: calc(70px + env(safe-area-inset-bottom)); right: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 10px 0 0 0; }
 }
+
+.frame-title:hover { text-decoration: underline; text-underline-offset: 4px; }
+.frame-title-input:invalid { border-color: var(--red); outline-color: var(--red); }
+.frame-title-input { position: absolute; left: 12px; top: 0; width: calc(100% - 100px); height: 44px; min-width: 0; padding: 6px 12px; border: 1px solid var(--green); border-radius: 6px; background: var(--paper); font-weight: 600; pointer-events: auto; user-select: text; touch-action: manipulation; cursor: text; z-index: 4; }
 
 /* The board, not the application chrome, owns the viewport. Menus are overlays
    so opening a tool never changes saved card coordinates or triggers a relayout. */
@@ -1285,6 +1289,9 @@ dialog h3 {
   .shortcut-action { grid-column: 1 / -1; }
   .shortcut-row .button, .shortcut-row .text-button { min-height: 44px; }
 }
+
+/* Only phone widths use the full-width action bar. */
+@media(min-width:601px) { .tree-actions { display: flex; } .mobile-actions { display: none; } }
 
 </style>
   <link rel="modulepreload" href="./model.mjs">
@@ -1551,7 +1558,7 @@ dialog h3 {
 <p>PCはカードをダブルクリックすると、右側で考えやメモを読んで編集できます。入力は自動保存されます。開いたまま別のカードをクリックすると内容が切り替わり、ボードの移動や拡大も続けられます。×かEscapeで閉じます。スマホはカードを選んで「編集する」を押します。</p>
 <h3>色と枠で分類する</h3>
 <p>編集欄では、元からつながる線の色も変えられます。「分類枠で囲む」で選んだ枝全体を囲み、名前を付けます。別々のカードを囲むなら「複数選択」を有効にして選びます。PCではShiftを押して追加選択もできます。</p>
-<p>カードも枠も四つ角にカーソルを合わせると形が変わり、ドラッグで大きさを調整できます。枠の見出しをドラッグすると中身も移動し、四つ角のどこからでもドラッグしてサイズを変えると完全に囲まれたカードが中に入ります。枠だけを外してもカードは消えません。枠は分類、線は派生元を表し、採用・保留の判断とは独立しています。</p>
+<p>カードも枠も四つ角にカーソルを合わせると形が変わり、ドラッグで大きさを調整できます。枠の名前はタップするとその場で書き換えられ、Enterまたは外側を押して確定、Escapeで取り消せます。枠の見出しをドラッグすると中身も移動し、四つ角のどこからでもドラッグしてサイズを変えると完全に囲まれたカードが中に入ります。枠だけを外してもカードは消えません。枠は分類、線は派生元を表し、採用・保留の判断とは独立しています。</p>
 <h3>自分で決める</h3>
 <p>採用・保留・見送りは、あとから何度でも変えられます。左上の←は元に戻す、→はやり直す操作です。文章・カードや枠の移動・ボードの表示位置を直近40段階まで戻せます。戻した後に新しく編集すると、古い「進む」履歴は消えます。履歴はこのページを閉じるまで有効です。</p>
 <h3>保存先は、このブラウザ</h3>
@@ -1717,6 +1724,17 @@ const boardView = new BoardView($('board'), {
   ready: editorReady,
   multiple: () => multipleMode,
   frame: selectFrame,
+  frameTitleError: toast,
+  renameFrame: (id, title, notebookId) => {
+    if (book().id !== notebookId) return false;
+    const result = transaction(() => {
+      const frame = book().frames.find(item => item.id === id);
+      if (!frame) throw new Error('分類枠が見つかりません。');
+      frame.title = title;
+    }, { inspector: false, redraw: false });
+    renderHistory();
+    return result.ok;
+  },
   clearFrame: () => {
     selectedFrameId = null;
     renderBoardTools();
@@ -1748,6 +1766,11 @@ const boardView = new BoardView($('board'), {
   cancelDraft,
   draftChanged: () => {
     $('save-status').textContent = '新しい考えを入力中（未確定）';
+  },
+  frameTitleChanged: (editing) => {
+    $('save-status').textContent = editing ? '枠の名前を入力中（未確定）'
+      : blocked || saveError ? '未保存・書き出しを'
+      : saveTimer || saveQueued ? '保存待ち…' : 'このブラウザに保存済み';
   },
 });
 const pending = () => book().proposals.filter((p) => ['pending', 'orphaned'].includes(p.status));
@@ -1810,7 +1833,7 @@ async function flushSave() {
     else write();
     if (!blocked) {
       saveError = '';
-      $('save-status').textContent = draft
+      $('save-status').textContent = boardView.titleEdit ? '枠の名前を入力中（未確定）' : draft
         ? '新しい考えを入力中（未確定）'
         : invalidTitle
           ? '考えを入力してください'
@@ -1839,13 +1862,14 @@ function compositionReady() {
 }
 function editorReady() {
   if (!compositionReady()) return false;
+  if (!boardView.finishFrameTitle()) return false;
   if (draft && !commitDraft()) return false;
   if (!invalidTitle) return true;
   toast('考えを空欄にできません。文章を入力してください。');
   openEditor();
   return false;
 }
-function transaction(change, { group = '', inspector = true } = {}) {
+function transaction(change, { group = '', inspector = true, redraw = true } = {}) {
   // 変更前の全体を保存し、検証に失敗したら戻す。取り消しと保存が別の内容にならないよう、入口を一つにする。
   if (readOnly) {
     toast('共有ノートです。編集するときは「自分のノートにコピー」を押してください。');
@@ -1876,7 +1900,7 @@ function transaction(change, { group = '', inspector = true } = {}) {
     editGroup = group;
     editTime = now;
     persist();
-    render(inspector);
+    if (redraw) render(inspector);
     return { ok: true, result };
   } catch (error) {
     workspace = previous;
@@ -2319,7 +2343,7 @@ for (const id of ['node-text', 'node-note']) {
 document.addEventListener(
   'compositionstart',
   (event) => {
-    if (event.target.matches('#node-text, #node-note, .draft-input'))
+    if (event.target.matches('#node-text, #node-note, .draft-input, .frame-title-input'))
       composingTarget = event.target;
   },
   true,
@@ -2904,6 +2928,7 @@ window.addEventListener('beforeunload', (event) => {
   if (
     composingTarget ||
     draft?.text?.trim() ||
+    (boardView.titleEdit && boardView.titleEdit.value !== boardView.titleEdit.original) ||
     saveTimer ||
     saveQueued ||
     invalidTitle ||

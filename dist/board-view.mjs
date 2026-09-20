@@ -87,7 +87,7 @@ export class BoardView {
     const focusedFrame = this.container.contains(focused)
       ? focused.closest('.classification-frame')?.dataset.frameId
       : null;
-    const focusPart = focused?.dataset.side
+    const focusPart = focused?.classList.contains('frame-title-input') ? '.frame-title-input' : focused?.dataset.side
       ? `.port-${focused.dataset.side}`
       : focused?.dataset.corner
         ? `[data-corner="${focused.dataset.corner}"]`
@@ -116,9 +116,10 @@ export class BoardView {
       const title = el('button', 'frame-title', frame.title);
       title.type = 'button';
       title.setAttribute('aria-label', `分類：${frame.title}`);
+      title.title = this.callbacks.readOnly?.() ? frame.title : 'タップで名前を変更・ドラッグで枠を移動';
       box.append(title);
       title.addEventListener('click', (event) => {
-        if (event.detail === 0) this.callbacks.frame(frame.id);
+        if (event.detail === 0) this.beginFrameTitle(frame.id);
       });
       const edit = el('button', 'frame-edit', '編集');
       edit.type = 'button';
@@ -128,6 +129,7 @@ export class BoardView {
       this.addResizeCorners(box, frame, true);
       this.frames.append(box);
       this.frameElements.set(frame.id, box);
+      if (this.titleEdit?.frameId === frame.id && this.titleEdit.bookId === book.id) this.mountFrameTitle();
     }
     for (const { node, depth } of rows) {
       const card = el('article', `thought-card${selectedIds.has(node.id) ? ' is-selected' : ''}`);
@@ -195,6 +197,80 @@ export class BoardView {
       });
       element.append(handle);
     }
+  }
+  beginFrameTitle(frameId) {
+    if (this.callbacks.readOnly?.()) { this.callbacks.frame(frameId); return; }
+    if (!this.callbacks.ready()) return;
+    this.callbacks.frame(frameId);
+    const frame = this.book.frames.find((item) => item.id === frameId);
+    if (!frame) return;
+    this.titleEdit = { frameId, bookId: this.book.id, original: frame.title, value: frame.title };
+    this.callbacks.frameTitleChanged?.(true);
+    this.mountFrameTitle();
+    this.titleEdit.input.focus({ preventScroll: true });
+    this.titleEdit.input.select();
+  }
+  mountFrameTitle() {
+    const edit = this.titleEdit, box = this.frameElements.get(edit.frameId);
+    if (!box) return;
+    const input = el('input', 'frame-title-input');
+    input.value = edit.value;
+    input.maxLength = 80;
+    input.setAttribute('aria-label', '枠の名前');
+    input.title = 'Enterで確定・Escapeで取り消し';
+    edit.input = input;
+    input.addEventListener('input', () => {
+      edit.value = input.value;
+      input.setCustomValidity('');
+    });
+    input.addEventListener('compositionstart', () => { edit.composing = true; });
+    input.addEventListener('compositionend', () => { edit.composing = false; edit.value = input.value; });
+    input.addEventListener('keydown', (event) => {
+      if (event.isComposing || event.keyCode === 229 || edit.composing) return;
+      if (event.key === 'Enter' || event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.finishFrameTitle(event.key === 'Escape'))
+          this.frameElements.get(edit.frameId)?.querySelector('.frame-title').focus({ preventScroll: true });
+      }
+    });
+    input.addEventListener('blur', () => {
+      if (this.titleEdit === edit && edit.input === input && input.isConnected)
+        this.finishFrameTitle(!input.value.trim());
+    });
+    box.querySelector('.frame-title').hidden = true;
+    box.append(input);
+  }
+  finishFrameTitle(cancel = false) {
+    const edit = this.titleEdit;
+    if (!edit) return true;
+    if (edit.composing) { edit.input.focus({ preventScroll: true }); return false; }
+    const value = edit.input.value.trim();
+    if (!cancel && !value) {
+      edit.input.setCustomValidity('枠の名前を入力してください。');
+      this.callbacks.frameTitleError?.('枠の名前を入力してください。');
+      edit.input.focus({ preventScroll: true });
+      return false;
+    }
+    this.titleEdit = null;
+    this.callbacks.frameTitleChanged?.(false);
+    edit.input.remove();
+    const title = this.frameElements.get(edit.frameId)?.querySelector('.frame-title');
+    if (title) title.hidden = false;
+    if (!cancel && value !== edit.original) {
+      const ok = this.callbacks.renameFrame(edit.frameId, value, edit.bookId);
+      if (ok && title) {
+        title.textContent = value;
+        title.setAttribute('aria-label', `分類：${value}`);
+        const box = this.frameElements.get(edit.frameId);
+        box?.querySelector('.frame-edit')?.setAttribute('aria-label', `${value}の分類枠を編集`);
+        const names = { nw: '左上', ne: '右上', sw: '左下', se: '右下' };
+        for (const handle of box?.querySelectorAll('.resize-corner') ?? [])
+          handle.setAttribute('aria-label', `${value}の${names[handle.dataset.corner]}からサイズ変更。矢印キーでも調整できます`);
+      }
+      return ok;
+    }
+    return true;
   }
   drawGeometry(shown = new Set(this.rows.map((row) => row.node.id)), preview = null) {
     const positions = preview?.positions ?? new Map(),
@@ -370,6 +446,7 @@ export class BoardView {
       type,
       ids,
       frameId,
+      fromTitle: Boolean(event.target.closest('.frame-title')),
       cardId: card?.dataset.nodeId,
       corner: event.target.closest('.resize-corner')?.dataset.corner,
       x: event.clientX,
@@ -520,7 +597,8 @@ export class BoardView {
       return;
     }
     if (g.type === 'frame' || g.type === 'resize') {
-      this.callbacks.frame(g.frameId);
+      if (g.type === 'frame' && g.fromTitle) this.beginFrameTitle(g.frameId);
+      else this.callbacks.frame(g.frameId);
       return;
     }
     if (g.type === 'card-resize') {

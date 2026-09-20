@@ -7,7 +7,7 @@
 .notebook-heading h1 { font-size: 1.125rem; margin: 0; }
 .notebook-heading .eyebrow, .notebook-note { display: none; }
 .outline-tools { padding: 0 24px; margin: 0; border: 0; }
-.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(var(--strong) .8px, transparent .8px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
+.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) 55%, transparent) 1.15px, transparent 1.3px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
 .board:active { cursor: grabbing; }
 .board textarea { user-select: text; touch-action: manipulation; }
 .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; }
@@ -99,3 +99,7 @@
   .board-toolbar { padding-block: 2px; }
   .board-navigation { position: absolute; bottom: calc(70px + env(safe-area-inset-bottom)); right: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 10px 0 0 0; }
 }
+
+.frame-title:hover { text-decoration: underline; text-underline-offset: 4px; }
+.frame-title-input:invalid { border-color: var(--red); outline-color: var(--red); }
+.frame-title-input { position: absolute; left: 12px; top: 0; width: calc(100% - 100px); height: 44px; min-width: 0; padding: 6px 12px; border: 1px solid var(--green); border-radius: 6px; background: var(--paper); font-weight: 600; pointer-events: auto; user-select: text; touch-action: manipulation; cursor: text; z-index: 4; }

@@ -119,6 +119,17 @@ const boardView = new BoardView($('board'), {
   ready: editorReady,
   multiple: () => multipleMode,
   frame: selectFrame,
+  frameTitleError: toast,
+  renameFrame: (id, title, notebookId) => {
+    if (book().id !== notebookId) return false;
+    const result = transaction(() => {
+      const frame = book().frames.find(item => item.id === id);
+      if (!frame) throw new Error('分類枠が見つかりません。');
+      frame.title = title;
+    }, { inspector: false, redraw: false });
+    renderHistory();
+    return result.ok;
+  },
   clearFrame: () => {
     selectedFrameId = null;
     renderBoardTools();
@@ -150,6 +161,11 @@ const boardView = new BoardView($('board'), {
   cancelDraft,
   draftChanged: () => {
     $('save-status').textContent = '新しい考えを入力中（未確定）';
+  },
+  frameTitleChanged: (editing) => {
+    $('save-status').textContent = editing ? '枠の名前を入力中（未確定）'
+      : blocked || saveError ? '未保存・書き出しを'
+      : saveTimer || saveQueued ? '保存待ち…' : 'このブラウザに保存済み';
   },
 });
 const pending = () => book().proposals.filter((p) => ['pending', 'orphaned'].includes(p.status));
@@ -212,7 +228,7 @@ async function flushSave() {
     else write();
     if (!blocked) {
       saveError = '';
-      $('save-status').textContent = draft
+      $('save-status').textContent = boardView.titleEdit ? '枠の名前を入力中（未確定）' : draft
         ? '新しい考えを入力中（未確定）'
         : invalidTitle
           ? '考えを入力してください'
@@ -241,13 +257,14 @@ function compositionReady() {
 }
 function editorReady() {
   if (!compositionReady()) return false;
+  if (!boardView.finishFrameTitle()) return false;
   if (draft && !commitDraft()) return false;
   if (!invalidTitle) return true;
   toast('考えを空欄にできません。文章を入力してください。');
   openEditor();
   return false;
 }
-function transaction(change, { group = '', inspector = true } = {}) {
+function transaction(change, { group = '', inspector = true, redraw = true } = {}) {
   // 変更前の全体を保存し、検証に失敗したら戻す。取り消しと保存が別の内容にならないよう、入口を一つにする。
   if (readOnly) {
     toast('共有ノートです。編集するときは「自分のノートにコピー」を押してください。');
@@ -278,7 +295,7 @@ function transaction(change, { group = '', inspector = true } = {}) {
     editGroup = group;
     editTime = now;
     persist();
-    render(inspector);
+    if (redraw) render(inspector);
     return { ok: true, result };
   } catch (error) {
     workspace = previous;
@@ -721,7 +738,7 @@ for (const id of ['node-text', 'node-note']) {
 document.addEventListener(
   'compositionstart',
   (event) => {
-    if (event.target.matches('#node-text, #node-note, .draft-input'))
+    if (event.target.matches('#node-text, #node-note, .draft-input, .frame-title-input'))
       composingTarget = event.target;
   },
   true,
@@ -1306,6 +1323,7 @@ window.addEventListener('beforeunload', (event) => {
   if (
     composingTarget ||
     draft?.text?.trim() ||
+    (boardView.titleEdit && boardView.titleEdit.value !== boardView.titleEdit.original) ||
     saveTimer ||
     saveQueued ||
     invalidTitle ||
