@@ -1,6 +1,16 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：編集パネルの固定見出し / version 15（2026-09-20）
+## 現在の配布：スマホ縦だけ下部編集 / version 16（2026-09-20）
+
+- 同じpublic URLで `succeeded`（2026-09-20 13:03:31 UTC / 22:03:31 JST）。
+- URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
+- 配布コード: `3be0037862964776c26097131498976aaf6b8448`。GitHub/Sites mainへpush後、同一HEADの静的資産/manifest14ファイルを配布。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_205dc1536e9c819199f9655de6b47411`。
+- Deployment: `appgdep_6aafd99641f0819197459928abd8e9f5`。
+- 600px以下かつ縦長だけ下部編集。それ以外は右側に幅を予約し、ボードを同時操作。追加バー・mobile-only・modal/inertを同期。回転時も編集中のカードを維持し、ノート一覧との二重inertを回避。
+- ロジック: 96テスト・独立レビューPASS。ローカル8サイズの表示方式/背景操作/追加バー、695・390幅のスクロール、568横の保存表示/追加バー非重複、回転時の一覧閉鎖とフォーカスを確認。695幅は画像確認。実機タッチ/ソフトキーボードと公開後ブラウザ再検証は未実施。
+
+## 過去の配布：編集パネルの固定見出し / version 15（2026-09-20）
 
 - 同じpublic URLで `succeeded`（2026-09-20 08:18:30 UTC / 17:18:30 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
