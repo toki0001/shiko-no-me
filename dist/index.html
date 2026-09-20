@@ -1009,7 +1009,7 @@ dialog h3 {
 .notebook-heading h1 { font-size: 1.125rem; margin: 0; }
 .notebook-heading .eyebrow, .notebook-note { display: none; }
 .outline-tools { padding: 0 24px; margin: 0; border: 0; }
-.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) 55%, transparent) 1.15px, transparent 1.3px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
+.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) var(--dot-opacity, 25%), transparent) 1.15px, transparent 1.3px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
 .board:active { cursor: grabbing; }
 .board textarea { user-select: text; touch-action: manipulation; }
 .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; }
@@ -1293,6 +1293,14 @@ dialog h3 {
 /* Only phone widths use the full-width action bar. */
 @media(min-width:601px) { .tree-actions { display: flex; } .mobile-actions { display: none; } }
 
+/* Temporary comparison controls appear only on the background review URL. */
+.background-preview { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.background-preview > span { color: var(--muted); font-size: .8125rem; margin-right: 8px; }
+.background-preview button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: .8125rem; }
+.background-preview button[aria-pressed=true] { background: var(--wash); border-color: var(--green); color: var(--green); font-weight: 600; }
+.decision-mode .background-preview { display: none; }
+@media(max-width:600px) { .background-preview > span { flex-basis: 100%; text-align: center; margin-right: 0; } }
+
 </style>
   <link rel="modulepreload" href="./model.mjs">
   <link rel="modulepreload" href="./storage.mjs">
@@ -1360,6 +1368,12 @@ dialog h3 {
         <div class="mode-start"><button class="text-button" id="try-example">例から試す</button><button class="button" id="new-question">＋ 新しい問い</button></div>
         <button class="text-button" id="quick-shortcuts" aria-label="ショートカット・キー設定を開く">キー操作</button>
       </nav>
+      <div class="background-preview" id="background-preview" role="group" aria-label="背景の濃さを比較" hidden>
+        <span>背景の比較</span>
+        <button type="button" data-dot-choice="a" aria-pressed="false">A かなり薄い</button>
+        <button type="button" data-dot-choice="b" aria-pressed="true">B 薄い</button>
+        <button type="button" data-dot-choice="c" aria-pressed="false">C 少し薄い</button>
+      </div>
       <div class="workspace">
         <section class="paper" aria-labelledby="notebook-title">
           <div class="notebook-heading">
@@ -1691,7 +1705,7 @@ let selectedIds = new Set(),
   selectedFrameId = null,
   multipleMode = false,
   viewMode =
-    firstVisit || new URLSearchParams(location.search).get('view') === 'compare'
+    (firstVisit && new URLSearchParams(location.search).get('background') !== 'preview') || new URLSearchParams(location.search).get('view') === 'compare'
       ? 'compare'
       : 'board',
   draft = null;
@@ -2974,6 +2988,7 @@ function renderBoardTools() {
   $('quick-edit').textContent = frame ? '枠を編集' : '選んだカードを編集';
   $('quick-edit').disabled = !frame && selectedIds.size !== 1;
   $('board').hidden = viewMode !== 'board';
+  $('background-preview').hidden = viewMode !== 'board' || new URLSearchParams(location.search).get('background') !== 'preview';
   $('outline').hidden = viewMode !== 'outline';
   $('board-navigation').hidden = viewMode !== 'board';
   $('board-actions').hidden = viewMode !== 'board';
@@ -3618,6 +3633,29 @@ if (readOnly) {
   $('save-status').textContent = '保存データの確認が必要';
 } else if (savedRaw === null) persist();
 registerAgentTools();
+
+// Review three lighter dot strengths without changing notebook data or personal settings.
+const backgroundReviewUrl = new URL(location.href);
+if (backgroundReviewUrl.searchParams.get('background') === 'preview') {
+  const strengths = { a: '15%', b: '25%', c: '35%' };
+  const applyBackground = (choice) => {
+    $('board').style.setProperty('--dot-opacity', strengths[choice]);
+    for (const button of document.querySelectorAll('[data-dot-choice]'))
+      button.setAttribute('aria-pressed', String(button.dataset.dotChoice === choice));
+  };
+  $('background-preview').hidden = viewMode !== 'board';
+  const requested = backgroundReviewUrl.searchParams.get('dots');
+  applyBackground(Object.hasOwn(strengths, requested) ? requested : 'b');
+  for (const button of document.querySelectorAll('[data-dot-choice]')) {
+    button.addEventListener('click', () => {
+      const choice = button.dataset.dotChoice;
+      applyBackground(choice);
+      const url = new URL(location.href);
+      url.searchParams.set('dots', choice);
+      window.history.replaceState(null, '', url);
+    });
+  }
+}
 
 </script>
 </body>

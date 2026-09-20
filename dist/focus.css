@@ -184,3 +184,11 @@
 
 /* Only phone widths use the full-width action bar. */
 @media(min-width:601px) { .tree-actions { display: flex; } .mobile-actions { display: none; } }
+
+/* Temporary comparison controls appear only on the background review URL. */
+.background-preview { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.background-preview > span { color: var(--muted); font-size: .8125rem; margin-right: 8px; }
+.background-preview button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: .8125rem; }
+.background-preview button[aria-pressed=true] { background: var(--wash); border-color: var(--green); color: var(--green); font-weight: 600; }
+.decision-mode .background-preview { display: none; }
+@media(max-width:600px) { .background-preview > span { flex-basis: 100%; text-align: center; margin-right: 0; } }

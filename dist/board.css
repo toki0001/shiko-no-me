@@ -7,7 +7,7 @@
 .notebook-heading h1 { font-size: 1.125rem; margin: 0; }
 .notebook-heading .eyebrow, .notebook-note { display: none; }
 .outline-tools { padding: 0 24px; margin: 0; border: 0; }
-.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) 55%, transparent) 1.15px, transparent 1.3px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
+.board { flex: 1; position: relative; min-height: 120px; overflow: hidden; background-color: var(--canvas); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) var(--dot-opacity, 25%), transparent) 1.15px, transparent 1.3px); background-size: 24px 24px; touch-action: none; user-select: none; cursor: grab; }
 .board:active { cursor: grabbing; }
 .board textarea { user-select: text; touch-action: manipulation; }
 .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; }
