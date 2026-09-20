@@ -160,3 +160,24 @@
   .candidate-title, .candidate-actions .text-button, #edit-question, .mode-start .button { min-height: 44px; }
 }
 @media(max-width:600px) { #decision-summary, .decision-context select { font-size: 1rem; } }
+
+.shortcuts-dialog { width: min(740px, calc(100vw - 24px)); }
+.shortcuts-dialog[open] { display: flex; flex-direction: column; height: min(920px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); }
+.shortcuts-dialog > :not(.shortcut-list) { flex-shrink: 0; }
+.shortcut-list { min-height: 100px; overflow-y: auto; padding-right: 8px; }
+.shortcuts-dialog .dialog-actions { margin-top: 12px; }
+.shortcut-toggle { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+.shortcut-toggle input { width: 18px; height: 18px; }
+.shortcut-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, auto) 108px 48px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.shortcut-action { font-size: .875rem; }
+.shortcut-row kbd { font-family: inherit; font-size: .8125rem; text-align: center; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; }
+.shortcut-row .button, .shortcut-row .text-button { min-height: 40px; padding: 6px; font-size: .8125rem; }
+.shortcut-feedback { min-height: 3em; font-size: .875rem; color: var(--green-dark, #315c43); }
+#quick-shortcuts { white-space: nowrap; font-size: .8125rem; }
+.decision-card:focus-visible { outline: 3px solid var(--accent, #34694e); outline-offset: 3px; }
+@media(max-width:600px) {
+  #quick-shortcuts { display: none; }
+  .shortcut-row { grid-template-columns: minmax(0,1fr) 102px 44px; gap: 8px; }
+  .shortcut-action { grid-column: 1 / -1; }
+  .shortcut-row .button, .shortcut-row .text-button { min-height: 44px; }
+}

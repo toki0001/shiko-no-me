@@ -1257,6 +1257,27 @@ dialog h3 {
 }
 @media(max-width:600px) { #decision-summary, .decision-context select { font-size: 1rem; } }
 
+.shortcuts-dialog { width: min(740px, calc(100vw - 24px)); }
+.shortcuts-dialog[open] { display: flex; flex-direction: column; height: min(920px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); }
+.shortcuts-dialog > :not(.shortcut-list) { flex-shrink: 0; }
+.shortcut-list { min-height: 100px; overflow-y: auto; padding-right: 8px; }
+.shortcuts-dialog .dialog-actions { margin-top: 12px; }
+.shortcut-toggle { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+.shortcut-toggle input { width: 18px; height: 18px; }
+.shortcut-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, auto) 108px 48px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.shortcut-action { font-size: .875rem; }
+.shortcut-row kbd { font-family: inherit; font-size: .8125rem; text-align: center; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; }
+.shortcut-row .button, .shortcut-row .text-button { min-height: 40px; padding: 6px; font-size: .8125rem; }
+.shortcut-feedback { min-height: 3em; font-size: .875rem; color: var(--green-dark, #315c43); }
+#quick-shortcuts { white-space: nowrap; font-size: .8125rem; }
+.decision-card:focus-visible { outline: 3px solid var(--accent, #34694e); outline-offset: 3px; }
+@media(max-width:600px) {
+  #quick-shortcuts { display: none; }
+  .shortcut-row { grid-template-columns: minmax(0,1fr) 102px 44px; gap: 8px; }
+  .shortcut-action { grid-column: 1 / -1; }
+  .shortcut-row .button, .shortcut-row .text-button { min-height: 44px; }
+}
+
 </style>
   <link rel="modulepreload" href="./model.mjs">
   <link rel="modulepreload" href="./storage.mjs">
@@ -1265,6 +1286,7 @@ dialog h3 {
   <link rel="modulepreload" href="./story.mjs">
   <link rel="modulepreload" href="./history.mjs">
   <link rel="modulepreload" href="./decision-model.mjs">
+  <link rel="modulepreload" href="./shortcuts.mjs">
 </head>
 <body>
   <a class="skip-link" href="#board">思考ボードへ</a>
@@ -1295,6 +1317,7 @@ dialog h3 {
         <button class="side-button" id="export-all">ノートを書き出す</button>
         <button class="side-button" id="import-file">ファイルから読み込む</button>
         <button class="side-button" id="open-help">使い方・保存について</button>
+        <button class="side-button" id="open-shortcuts">ショートカット・キー設定</button>
         <a class="side-button" href="https://github.com/toki0001/shiko-no-me/issues/new" target="_blank" rel="noopener noreferrer">不具合・感想を送る ↗</a>
         <p class="muted small">GitHubへの公開投稿です。個人情報やノート本文は書かないでください。</p>
       </div>
@@ -1320,6 +1343,7 @@ dialog h3 {
         <div class="mode-switch"><button id="mode-board" aria-pressed="true">広げる</button><button id="mode-compare" aria-pressed="false">比べて決める</button></div>
         <span class="mode-caption">案を広げて、選んだ理由まで残す。</span>
         <div class="mode-start"><button class="text-button" id="try-example">例から試す</button><button class="button" id="new-question">＋ 新しい問い</button></div>
+        <button class="text-button" id="quick-shortcuts" aria-label="ショートカット・キー設定を開く">キー操作</button>
       </nav>
       <div class="workspace">
         <section class="paper" aria-labelledby="notebook-title">
@@ -1525,10 +1549,21 @@ dialog h3 {
 <h3>保存先は、このブラウザ</h3>
 <p>アカウントやクラウド保存はありません。ブラウザのデータ削除やプライベートモードでは失われるため、定期的に「ノートを書き出す」でファイルを保存してください。読み込みは既存ノートを消さず、別のノートとして追加します。</p>
 <h3>キーボード</h3>
-<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。枠の右下は矢印キーでサイズ変更。F2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
+<p>カードを選んで、1＝採用、2＝保留、3＝見送り、0＝考え中。Nで子カード、Shift＋Nで同じ階層にカードを追加できます（初期設定）。入力中は作動しません。</p>
+<button class="button" id="help-shortcuts">ショートカットの一覧・キーを変更</button>
+<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。枠の右下は矢印キーでサイズ変更。初期設定ではF2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
 <h3>AIについて</h3>
 <p>AIの契約はこのアプリに含まれません。渡した内容には、利用するAIサービスのデータ取り扱いが適用されます。AIを使わずにノートだけでも使えます。</p>
 </dialog>
+  <dialog id="shortcuts-dialog" aria-labelledby="shortcuts-title" class="shortcuts-dialog">
+    <div class="dialog-heading"><h2 id="shortcuts-title">ショートカット・キー設定</h2><button type="button" class="icon-button" data-close aria-label="キー設定を閉じる">×</button></div>
+    <p class="muted">カードを1枚選んで使います。文章の入力中・文字変換中・ほかの操作画面を開いている間は作動しません。</p>
+    <label class="shortcut-toggle"><input id="shortcut-enabled" type="checkbox">ショートカットを使う</label>
+    <div id="shortcut-list" class="shortcut-list"></div>
+    <p id="shortcut-feedback" role="status" class="shortcut-feedback"></p>
+    <details><summary>使えるキー・保存について</summary><p class="muted small">英数字・F2、Shiftとの組み合わせが使えます。Ctrl／⌘はZ・Y（Shift併用可）またはShift＋数字、AltはShift＋英数字を使えます。ブラウザ操作との重複を避けるため、ほかの組み合わせは受け付けません。Ctrlと⌘は同じ割り当てとして扱います。</p><p class="muted small">Tab・Enter・Escape・矢印など、移動・確定・閉じるキーは固定です。やり直しが初期設定のときはCtrl／⌘＋Yも使えます。設定はこのブラウザだけに保存され、ノートの書き出しには含まれません。</p></details>
+    <div class="dialog-actions"><button type="button" class="text-button" id="shortcut-reset">初期設定に戻す</button><button type="button" class="button" data-close>やめる</button><button type="button" class="button primary" id="shortcut-save">設定を保存</button></div>
+  </dialog>
   <dialog id="summary-dialog" aria-labelledby="summary-title" class="summary-dialog">
     <div class="dialog-heading"><h2 id="summary-title">判断を持ち帰る</h2><button type="button" class="icon-button" data-close aria-label="まとめを閉じる">×</button></div>
     <p class="muted">採用した案も、まだ迷っている案も、理由と一緒に残します。</p>
@@ -1592,6 +1627,7 @@ import { BoardView } from './board-view.mjs';
 import { createIdeaStory } from './story.mjs';
 import { UndoHistory } from './history.mjs';
 import { comparisonFor, decisionSummary, templateNotebook } from './decision-model.mjs';
+import { ACTIONS, defaults, eventBinding, assignBinding, matchShortcut, loadSettings, saveSettings, keyLabel } from './shortcuts.mjs';
 
 // このファイルが画面、保存、履歴をつなぐ。データ検証はmodel、描画とジェスチャーはBoardViewへ委譲する。
 // 内容の変更はtransaction、入力中の文章はeditNodeを入口にし、成功した変更だけ履歴と保存へ渡す。
@@ -1609,6 +1645,8 @@ try {
   };
 }
 const loaded = load(local);
+const shortcutLoad = loadSettings(local);
+let shortcutSettings = shortcutLoad.settings, shortcutDraft, recordingShortcut = null;
 const story =
   new URLSearchParams(location.search).get('demo') === 'origin' ? createIdeaStory() : null;
 const firstVisit = !story && loaded.raw === null && !loaded.blocked;
@@ -2131,6 +2169,7 @@ function trapFocus(event, container) {
   }
 }
 function treeKeydown(event) {
+  if (event.defaultPrevented) return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
   const keys = ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Escape'];
   if (!keys.includes(event.key)) return;
@@ -2485,6 +2524,141 @@ $('quick-edit').addEventListener('click', () => $('board-edit').click());
 $('open-help').addEventListener('click', () => {
   if (editorReady()) $('help-dialog').showModal();
 });
+
+function renderShortcutRows(focusId) {
+  $('shortcut-enabled').checked = shortcutDraft.enabled;
+  $('shortcut-list').replaceChildren(...ACTIONS.map(action => {
+    const row = element('div', 'shortcut-row');
+    const label = element('span', 'shortcut-action', action.label);
+    const key = element('kbd', '', keyLabel(shortcutDraft.bindings[action.id]));
+    const change = button('変更', 'button', () => {
+      recordingShortcut = action.id;
+      change.textContent = 'キーを押す…';
+      $('shortcut-feedback').textContent = `${action.label}に使うキーを押してください。Escapeで中止。`;
+    });
+    change.dataset.recordShortcut = action.id;
+    change.setAttribute('aria-label', `${action.label}のキーを変更`);
+    change.addEventListener('blur', () => {
+      change.textContent = '変更';
+      if (recordingShortcut === action.id) {
+        recordingShortcut = null;
+      }
+    });
+    const clear = button('解除', 'text-button', () => {
+      shortcutDraft = assignBinding(shortcutDraft, action.id, null);
+      recordingShortcut = null;
+      renderShortcutRows(action.id);
+      $('shortcut-feedback').textContent = '割り当てを解除しました。「設定を保存」で反映します。';
+    });
+    clear.setAttribute('aria-label', `${action.label}の割り当てを解除`);
+    row.append(label, key, change, clear);
+    return row;
+  }));
+  if (focusId) [...$('shortcut-list').querySelectorAll('[data-record-shortcut]')].find(b => b.dataset.recordShortcut === focusId)?.focus();
+}
+function openShortcuts() {
+  if (!editorReady()) return;
+  closeSidebar(false);
+  if ($('help-dialog').open) $('help-dialog').close();
+  shortcutDraft = structuredClone(shortcutSettings);
+  recordingShortcut = null;
+  renderShortcutRows();
+  $('shortcut-feedback').textContent = shortcutLoad.warning || '「変更」を押してから、使いたいキーを押してください。';
+  $('shortcuts-dialog').showModal();
+}
+for (const id of ['open-shortcuts', 'help-shortcuts', 'quick-shortcuts']) $(id).addEventListener('click', openShortcuts);
+$('shortcut-enabled').addEventListener('change', () => { shortcutDraft.enabled = $('shortcut-enabled').checked; });
+$('shortcut-reset').addEventListener('click', () => {
+  recordingShortcut = null;
+  shortcutDraft = defaults();
+  renderShortcutRows();
+  $('shortcut-feedback').textContent = '初期設定に戻しました。「設定を保存」で反映します。';
+});
+$('shortcut-save').addEventListener('click', () => {
+  try {
+    shortcutSettings = saveSettings(local, shortcutDraft);
+    shortcutLoad.warning = '';
+    updateShortcutHints();
+    $('shortcuts-dialog').close();
+    toast('キー設定をこのブラウザに保存しました');
+  } catch {
+    $('shortcut-feedback').textContent = '保存できませんでした。設定は変更していません。ブラウザの保存設定を確認してください。';
+  }
+});
+$('shortcuts-dialog').addEventListener('close', () => {
+  recordingShortcut = null;
+  ($('quick-shortcuts').getClientRects().length ? $('quick-shortcuts') : $('quick-help')).focus({ preventScroll: true });
+});
+function updateShortcutHints() {
+  const bind = (target, id, label) => {
+    const key = shortcutSettings.enabled && shortcutSettings.bindings[id];
+    target.title = key ? `${label}（${keyLabel(key)}）` : label;
+    if (key) target.setAttribute('aria-keyshortcuts', key.replace('Mod', navigator.platform.includes('Mac') ? 'Meta' : 'Control'));
+    else target.removeAttribute('aria-keyshortcuts');
+  };
+  for (const [id, action] of [['quick-edit','edit'], ['add-child','child'], ['fit-board','fit'], ['undo','undo'], ['redo','redo']])
+    bind($(id), action, ACTIONS.find(a => a.id === action).label);
+  for (const b of $('state-buttons').querySelectorAll('button')) bind(b, b.dataset.state, STATES[b.dataset.state]);
+}
+updateShortcutHints();
+
+// Capture commands before board/tree-specific keys. Text entry and native browser
+// controls retain their own keyboard behavior, including text undo and IME.
+document.addEventListener('keydown', event => {
+  if (recordingShortcut && event.target.dataset.recordShortcut === recordingShortcut) {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Tab') { recordingShortcut = null; return; }
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat) return;
+    const id = recordingShortcut;
+    if (event.key === 'Escape') {
+      recordingShortcut = null;
+      renderShortcutRows(id);
+      $('shortcut-feedback').textContent = 'キーの変更を中止しました。';
+      return;
+    }
+    if (['Control','Meta','Alt','Shift'].includes(event.key)) return;
+    try {
+      const binding = eventBinding(event);
+      if (!binding) throw new Error('英数字またはF2を押してください。Tab・Enter・Escape・矢印キーは移動や確定に使います。');
+      shortcutDraft = assignBinding(shortcutDraft, id, binding);
+      recordingShortcut = null;
+      renderShortcutRows(id);
+      $('shortcut-feedback').textContent = `${keyLabel(binding)}に変更しました。「設定を保存」で反映します。`;
+    } catch (error) { $('shortcut-feedback').textContent = error.message; }
+    return;
+  }
+  const action = matchShortcut(event, shortcutSettings, {
+    editable: Boolean(event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')),
+    modal: Boolean(document.querySelector('dialog[open]') || $('sidebar').classList.contains('is-open') || (compact.matches && $('inspector').classList.contains('is-open'))),
+    busy: Boolean(composingTarget || draft || boardView.gesture || boardView.pinch),
+  });
+  if (!action) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (action.writes && readOnly) { toast('このノートは閲覧専用です。コピーすると編集できます。'); return; }
+  if (action.id === 'undo' || action.id === 'redo') { navigateHistory(action.id); return; }
+  if (!editorReady()) return;
+  if (action.card) {
+    if (selectedFrameId || selectedIds.size !== 1 || multipleMode) { toast('カードを1枚選んでください。'); return; }
+    const focusedCard = event.target.closest('.thought-card,.decision-card,.tree-row');
+    if (focusedCard?.dataset.nodeId && focusedCard.dataset.nodeId !== selectedId && !selectBoardNode(focusedCard.dataset.nodeId)) return;
+    if (viewMode === 'compare' && !comparison().candidates.some(n => n.id === selectedId)) { toast('操作する候補カードを選んでください。'); return; }
+  }
+  if (Object.hasOwn(STATES, action.id)) {
+    if (activeNode().state === action.id) return;
+    const result = transaction(() => updateNode(book(), selectedId, { state: action.id }));
+    if (result.ok) toast(`「${activeNode().text}」を${STATES[action.id]}にしました`);
+  } else if (action.id === 'child') {
+    if (viewMode === 'board') beginDraft(selectedId, 'right'); else openEntry('child');
+  } else if (action.id === 'sibling') {
+    if (!activeNode().parentId) { toast('最初の問いには同じ階層のカードを追加できません。子カードを追加してください。'); return; }
+    openEntry('sibling');
+  } else if (action.id === 'edit') openEditor();
+  else if (action.id === 'fit') { if (viewMode === 'board') boardView.fit(); else toast('全体表示は「広げる」画面で使えます。'); }
+  else if (action.id === 'view') setWorkspaceMode(viewMode === 'compare' ? 'board' : 'compare');
+}, true);
 $('share-notebook').addEventListener('click', () => {
   closeSidebar();
   toast('デモ版では自分のノートを共有できません。共有中の企画デモは「ノート」から開けます。');
@@ -2495,17 +2669,6 @@ document
 document.addEventListener('keydown', (event) => {
   if (event.isComposing || composingTarget) return;
   if (document.querySelector('dialog[open]')) return;
-  if (
-    (event.ctrlKey || event.metaKey) &&
-    !event.target.closest('input,textarea,[contenteditable="true"]')
-  ) {
-    const key = event.key.toLowerCase();
-    if (key === 'z' || key === 'y') {
-      event.preventDefault();
-      navigateHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
-      return;
-    }
-  }
   if (event.key === 'Escape') {
     closeSidebar();
     if (editorReady()) closeEditor();
@@ -3079,6 +3242,13 @@ function renderDecision() {
         `decision-card ${node.state}${node.id === selectedId ? ' is-selected' : ''}`,
       );
       card.setAttribute('aria-label', `案${index + 1}：${node.text}`);
+      card.dataset.nodeId = node.id;
+      card.dataset.focusKey = `${node.id}:card`;
+      card.tabIndex = 0;
+      card.addEventListener('click', event => {
+        if (event.target.closest('button,select,textarea,input,a')) return;
+        if (selectBoardNode(node.id)) [...$('decision-cards').children].find(c => c.dataset.nodeId === node.id)?.focus({preventScroll:true});
+      });
       const top = element('div', 'decision-card-top');
       top.append(
         element('span', 'option-number', `案 ${String(index + 1).padStart(2, '0')}`),

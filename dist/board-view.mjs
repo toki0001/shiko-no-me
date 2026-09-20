@@ -155,7 +155,7 @@ export class BoardView {
       select.type = 'button';
       select.setAttribute('aria-label', `${node.text}、${this.callbacks.stateLabel(node.state)}`);
       select.setAttribute('aria-pressed', String(selectedIds.has(node.id)));
-      select.title = 'ダブルクリックで内容を開く（F2でも編集）';
+      select.title = 'ダブルクリックで内容を開く';
       select.append(el('span', 'card-text', node.text));
       const meta = el('span', 'card-meta');
       meta.append(el('span', 'card-state', this.callbacks.stateLabel(node.state)));
@@ -554,6 +554,7 @@ export class BoardView {
   }
   keydown(event) {
     if (
+      event.defaultPrevented ||
       event.isComposing ||
       event.target.closest('textarea,input') ||
       event.target.closest('.frame-resize')
@@ -589,10 +590,6 @@ export class BoardView {
           .focus({ preventScroll: true });
       }
       return;
-    }
-    if (card && event.key === 'F2') {
-      event.preventDefault();
-      this.callbacks.edit(card.dataset.nodeId);
     }
     if (
       event.target === this.container &&

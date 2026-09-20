@@ -14,6 +14,7 @@
   <link rel="modulepreload" href="./story.mjs">
   <link rel="modulepreload" href="./history.mjs">
   <link rel="modulepreload" href="./decision-model.mjs">
+  <link rel="modulepreload" href="./shortcuts.mjs">
 </head>
 <body>
   <a class="skip-link" href="#board">思考ボードへ</a>
@@ -44,6 +45,7 @@
         <button class="side-button" id="export-all">ノートを書き出す</button>
         <button class="side-button" id="import-file">ファイルから読み込む</button>
         <button class="side-button" id="open-help">使い方・保存について</button>
+        <button class="side-button" id="open-shortcuts">ショートカット・キー設定</button>
         <a class="side-button" href="https://github.com/toki0001/shiko-no-me/issues/new" target="_blank" rel="noopener noreferrer">不具合・感想を送る ↗</a>
         <p class="muted small">GitHubへの公開投稿です。個人情報やノート本文は書かないでください。</p>
       </div>
@@ -69,6 +71,7 @@
         <div class="mode-switch"><button id="mode-board" aria-pressed="true">広げる</button><button id="mode-compare" aria-pressed="false">比べて決める</button></div>
         <span class="mode-caption">案を広げて、選んだ理由まで残す。</span>
         <div class="mode-start"><button class="text-button" id="try-example">例から試す</button><button class="button" id="new-question">＋ 新しい問い</button></div>
+        <button class="text-button" id="quick-shortcuts" aria-label="ショートカット・キー設定を開く">キー操作</button>
       </nav>
       <div class="workspace">
         <section class="paper" aria-labelledby="notebook-title">
@@ -274,10 +277,21 @@
 <h3>保存先は、このブラウザ</h3>
 <p>アカウントやクラウド保存はありません。ブラウザのデータ削除やプライベートモードでは失われるため、定期的に「ノートを書き出す」でファイルを保存してください。読み込みは既存ノートを消さず、別のノートとして追加します。</p>
 <h3>キーボード</h3>
-<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。枠の右下は矢印キーでサイズ変更。F2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
+<p>カードを選んで、1＝採用、2＝保留、3＝見送り、0＝考え中。Nで子カード、Shift＋Nで同じ階層にカードを追加できます（初期設定）。入力中は作動しません。</p>
+<button class="button" id="help-shortcuts">ショートカットの一覧・キーを変更</button>
+<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。枠の右下は矢印キーでサイズ変更。初期設定ではF2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
 <h3>AIについて</h3>
 <p>AIの契約はこのアプリに含まれません。渡した内容には、利用するAIサービスのデータ取り扱いが適用されます。AIを使わずにノートだけでも使えます。</p>
 </dialog>
+  <dialog id="shortcuts-dialog" aria-labelledby="shortcuts-title" class="shortcuts-dialog">
+    <div class="dialog-heading"><h2 id="shortcuts-title">ショートカット・キー設定</h2><button type="button" class="icon-button" data-close aria-label="キー設定を閉じる">×</button></div>
+    <p class="muted">カードを1枚選んで使います。文章の入力中・文字変換中・ほかの操作画面を開いている間は作動しません。</p>
+    <label class="shortcut-toggle"><input id="shortcut-enabled" type="checkbox">ショートカットを使う</label>
+    <div id="shortcut-list" class="shortcut-list"></div>
+    <p id="shortcut-feedback" role="status" class="shortcut-feedback"></p>
+    <details><summary>使えるキー・保存について</summary><p class="muted small">英数字・F2、Shiftとの組み合わせが使えます。Ctrl／⌘はZ・Y（Shift併用可）またはShift＋数字、AltはShift＋英数字を使えます。ブラウザ操作との重複を避けるため、ほかの組み合わせは受け付けません。Ctrlと⌘は同じ割り当てとして扱います。</p><p class="muted small">Tab・Enter・Escape・矢印など、移動・確定・閉じるキーは固定です。やり直しが初期設定のときはCtrl／⌘＋Yも使えます。設定はこのブラウザだけに保存され、ノートの書き出しには含まれません。</p></details>
+    <div class="dialog-actions"><button type="button" class="text-button" id="shortcut-reset">初期設定に戻す</button><button type="button" class="button" data-close>やめる</button><button type="button" class="button primary" id="shortcut-save">設定を保存</button></div>
+  </dialog>
   <dialog id="summary-dialog" aria-labelledby="summary-title" class="summary-dialog">
     <div class="dialog-heading"><h2 id="summary-title">判断を持ち帰る</h2><button type="button" class="icon-button" data-close aria-label="まとめを閉じる">×</button></div>
     <p class="muted">採用した案も、まだ迷っている案も、理由と一緒に残します。</p>

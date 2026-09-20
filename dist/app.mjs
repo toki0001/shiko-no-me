@@ -37,6 +37,7 @@ import { BoardView } from './board-view.mjs';
 import { createIdeaStory } from './story.mjs';
 import { UndoHistory } from './history.mjs';
 import { comparisonFor, decisionSummary, templateNotebook } from './decision-model.mjs';
+import { ACTIONS, defaults, eventBinding, assignBinding, matchShortcut, loadSettings, saveSettings, keyLabel } from './shortcuts.mjs';
 
 // このファイルが画面、保存、履歴をつなぐ。データ検証はmodel、描画とジェスチャーはBoardViewへ委譲する。
 // 内容の変更はtransaction、入力中の文章はeditNodeを入口にし、成功した変更だけ履歴と保存へ渡す。
@@ -54,6 +55,8 @@ try {
   };
 }
 const loaded = load(local);
+const shortcutLoad = loadSettings(local);
+let shortcutSettings = shortcutLoad.settings, shortcutDraft, recordingShortcut = null;
 const story =
   new URLSearchParams(location.search).get('demo') === 'origin' ? createIdeaStory() : null;
 const firstVisit = !story && loaded.raw === null && !loaded.blocked;
@@ -576,6 +579,7 @@ function trapFocus(event, container) {
   }
 }
 function treeKeydown(event) {
+  if (event.defaultPrevented) return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
   const keys = ['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Escape'];
   if (!keys.includes(event.key)) return;
@@ -930,6 +934,141 @@ $('quick-edit').addEventListener('click', () => $('board-edit').click());
 $('open-help').addEventListener('click', () => {
   if (editorReady()) $('help-dialog').showModal();
 });
+
+function renderShortcutRows(focusId) {
+  $('shortcut-enabled').checked = shortcutDraft.enabled;
+  $('shortcut-list').replaceChildren(...ACTIONS.map(action => {
+    const row = element('div', 'shortcut-row');
+    const label = element('span', 'shortcut-action', action.label);
+    const key = element('kbd', '', keyLabel(shortcutDraft.bindings[action.id]));
+    const change = button('変更', 'button', () => {
+      recordingShortcut = action.id;
+      change.textContent = 'キーを押す…';
+      $('shortcut-feedback').textContent = `${action.label}に使うキーを押してください。Escapeで中止。`;
+    });
+    change.dataset.recordShortcut = action.id;
+    change.setAttribute('aria-label', `${action.label}のキーを変更`);
+    change.addEventListener('blur', () => {
+      change.textContent = '変更';
+      if (recordingShortcut === action.id) {
+        recordingShortcut = null;
+      }
+    });
+    const clear = button('解除', 'text-button', () => {
+      shortcutDraft = assignBinding(shortcutDraft, action.id, null);
+      recordingShortcut = null;
+      renderShortcutRows(action.id);
+      $('shortcut-feedback').textContent = '割り当てを解除しました。「設定を保存」で反映します。';
+    });
+    clear.setAttribute('aria-label', `${action.label}の割り当てを解除`);
+    row.append(label, key, change, clear);
+    return row;
+  }));
+  if (focusId) [...$('shortcut-list').querySelectorAll('[data-record-shortcut]')].find(b => b.dataset.recordShortcut === focusId)?.focus();
+}
+function openShortcuts() {
+  if (!editorReady()) return;
+  closeSidebar(false);
+  if ($('help-dialog').open) $('help-dialog').close();
+  shortcutDraft = structuredClone(shortcutSettings);
+  recordingShortcut = null;
+  renderShortcutRows();
+  $('shortcut-feedback').textContent = shortcutLoad.warning || '「変更」を押してから、使いたいキーを押してください。';
+  $('shortcuts-dialog').showModal();
+}
+for (const id of ['open-shortcuts', 'help-shortcuts', 'quick-shortcuts']) $(id).addEventListener('click', openShortcuts);
+$('shortcut-enabled').addEventListener('change', () => { shortcutDraft.enabled = $('shortcut-enabled').checked; });
+$('shortcut-reset').addEventListener('click', () => {
+  recordingShortcut = null;
+  shortcutDraft = defaults();
+  renderShortcutRows();
+  $('shortcut-feedback').textContent = '初期設定に戻しました。「設定を保存」で反映します。';
+});
+$('shortcut-save').addEventListener('click', () => {
+  try {
+    shortcutSettings = saveSettings(local, shortcutDraft);
+    shortcutLoad.warning = '';
+    updateShortcutHints();
+    $('shortcuts-dialog').close();
+    toast('キー設定をこのブラウザに保存しました');
+  } catch {
+    $('shortcut-feedback').textContent = '保存できませんでした。設定は変更していません。ブラウザの保存設定を確認してください。';
+  }
+});
+$('shortcuts-dialog').addEventListener('close', () => {
+  recordingShortcut = null;
+  ($('quick-shortcuts').getClientRects().length ? $('quick-shortcuts') : $('quick-help')).focus({ preventScroll: true });
+});
+function updateShortcutHints() {
+  const bind = (target, id, label) => {
+    const key = shortcutSettings.enabled && shortcutSettings.bindings[id];
+    target.title = key ? `${label}（${keyLabel(key)}）` : label;
+    if (key) target.setAttribute('aria-keyshortcuts', key.replace('Mod', navigator.platform.includes('Mac') ? 'Meta' : 'Control'));
+    else target.removeAttribute('aria-keyshortcuts');
+  };
+  for (const [id, action] of [['quick-edit','edit'], ['add-child','child'], ['fit-board','fit'], ['undo','undo'], ['redo','redo']])
+    bind($(id), action, ACTIONS.find(a => a.id === action).label);
+  for (const b of $('state-buttons').querySelectorAll('button')) bind(b, b.dataset.state, STATES[b.dataset.state]);
+}
+updateShortcutHints();
+
+// Capture commands before board/tree-specific keys. Text entry and native browser
+// controls retain their own keyboard behavior, including text undo and IME.
+document.addEventListener('keydown', event => {
+  if (recordingShortcut && event.target.dataset.recordShortcut === recordingShortcut) {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Tab') { recordingShortcut = null; return; }
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat) return;
+    const id = recordingShortcut;
+    if (event.key === 'Escape') {
+      recordingShortcut = null;
+      renderShortcutRows(id);
+      $('shortcut-feedback').textContent = 'キーの変更を中止しました。';
+      return;
+    }
+    if (['Control','Meta','Alt','Shift'].includes(event.key)) return;
+    try {
+      const binding = eventBinding(event);
+      if (!binding) throw new Error('英数字またはF2を押してください。Tab・Enter・Escape・矢印キーは移動や確定に使います。');
+      shortcutDraft = assignBinding(shortcutDraft, id, binding);
+      recordingShortcut = null;
+      renderShortcutRows(id);
+      $('shortcut-feedback').textContent = `${keyLabel(binding)}に変更しました。「設定を保存」で反映します。`;
+    } catch (error) { $('shortcut-feedback').textContent = error.message; }
+    return;
+  }
+  const action = matchShortcut(event, shortcutSettings, {
+    editable: Boolean(event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')),
+    modal: Boolean(document.querySelector('dialog[open]') || $('sidebar').classList.contains('is-open') || (compact.matches && $('inspector').classList.contains('is-open'))),
+    busy: Boolean(composingTarget || draft || boardView.gesture || boardView.pinch),
+  });
+  if (!action) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (action.writes && readOnly) { toast('このノートは閲覧専用です。コピーすると編集できます。'); return; }
+  if (action.id === 'undo' || action.id === 'redo') { navigateHistory(action.id); return; }
+  if (!editorReady()) return;
+  if (action.card) {
+    if (selectedFrameId || selectedIds.size !== 1 || multipleMode) { toast('カードを1枚選んでください。'); return; }
+    const focusedCard = event.target.closest('.thought-card,.decision-card,.tree-row');
+    if (focusedCard?.dataset.nodeId && focusedCard.dataset.nodeId !== selectedId && !selectBoardNode(focusedCard.dataset.nodeId)) return;
+    if (viewMode === 'compare' && !comparison().candidates.some(n => n.id === selectedId)) { toast('操作する候補カードを選んでください。'); return; }
+  }
+  if (Object.hasOwn(STATES, action.id)) {
+    if (activeNode().state === action.id) return;
+    const result = transaction(() => updateNode(book(), selectedId, { state: action.id }));
+    if (result.ok) toast(`「${activeNode().text}」を${STATES[action.id]}にしました`);
+  } else if (action.id === 'child') {
+    if (viewMode === 'board') beginDraft(selectedId, 'right'); else openEntry('child');
+  } else if (action.id === 'sibling') {
+    if (!activeNode().parentId) { toast('最初の問いには同じ階層のカードを追加できません。子カードを追加してください。'); return; }
+    openEntry('sibling');
+  } else if (action.id === 'edit') openEditor();
+  else if (action.id === 'fit') { if (viewMode === 'board') boardView.fit(); else toast('全体表示は「広げる」画面で使えます。'); }
+  else if (action.id === 'view') setWorkspaceMode(viewMode === 'compare' ? 'board' : 'compare');
+}, true);
 $('share-notebook').addEventListener('click', () => {
   closeSidebar();
   toast('デモ版では自分のノートを共有できません。共有中の企画デモは「ノート」から開けます。');
@@ -940,17 +1079,6 @@ document
 document.addEventListener('keydown', (event) => {
   if (event.isComposing || composingTarget) return;
   if (document.querySelector('dialog[open]')) return;
-  if (
-    (event.ctrlKey || event.metaKey) &&
-    !event.target.closest('input,textarea,[contenteditable="true"]')
-  ) {
-    const key = event.key.toLowerCase();
-    if (key === 'z' || key === 'y') {
-      event.preventDefault();
-      navigateHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
-      return;
-    }
-  }
   if (event.key === 'Escape') {
     closeSidebar();
     if (editorReady()) closeEditor();
@@ -1524,6 +1652,13 @@ function renderDecision() {
         `decision-card ${node.state}${node.id === selectedId ? ' is-selected' : ''}`,
       );
       card.setAttribute('aria-label', `案${index + 1}：${node.text}`);
+      card.dataset.nodeId = node.id;
+      card.dataset.focusKey = `${node.id}:card`;
+      card.tabIndex = 0;
+      card.addEventListener('click', event => {
+        if (event.target.closest('button,select,textarea,input,a')) return;
+        if (selectBoardNode(node.id)) [...$('decision-cards').children].find(c => c.dataset.nodeId === node.id)?.focus({preventScroll:true});
+      });
       const top = element('div', 'decision-card-top');
       top.append(
         element('span', 'option-number', `案 ${String(index + 1).padStart(2, '0')}`),
