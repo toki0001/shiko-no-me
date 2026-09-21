@@ -186,3 +186,11 @@ Browserの接続候補が空で、実際のブラウザへ接続できなかっ�
 - キー変更: 採用をA、編集をEへ変更し、重複拒否、保存/再読込後の反映、古い1/F2の無効化、全体オフ、初期復元を確認。複数選択は2枚の選択状態と案内を確認。閲覧専用デモは判断変更/追加キーを拒否。
 - 視覚: PCの設定画面をdocs/v1.01-shortcuts.jpgへ保存。行一覧をスクロールしても保存ボタンは画面内に残す。390幅はダイアログclientWidth/scrollWidthとも351px、保存ボタン下端795px<844px。実スマホ/IME/スクリーンリーダーとMac実機は未検証。
 - 公開なし。以前の12枚ギャラリーはキー操作追加前の記録。今回の実装には独立したレビュー担当を使っていない。
+
+# 応募条件の外部ライブラリ確認（2026-09-21）
+
+- 対象: https://progedu.github.io/webappcontest/2026/summer/index.html の HTML/CSS/JavaScript・外部ライブラリ制限。応募資格全体の審査ではない。
+- 作品本体: HTML/CSS/JavaScriptと標準DOM/SVG APIによる実装。package.jsonにdependencies/devDependenciesなし。公開用モジュールのimportは自作の相対ファイルのみ。外部CDNのアプリ用ライブラリなし。ビルドとテストはNode標準機能を使用する。
+- 公開資産: 本番のCSS/JavaScript全12ファイルがHTTP 200で、改行を正規化した内容がローカルと一致。公開HTMLに埋め込んだ作品のstyle/scriptも一致。
+- 配信側の例外: 公開HTMLにはCloudflare JavaScript Detectionsのコードが自動挿入され、/cdn-cgi/challenge-platform/scripts/jsd/main.jsを読み込む。これはボット対策の配信側処理であり、作品の表示・操作を作る外部ライブラリではない。ただし主催者がこの配信側処理の扱いを明示した記述は確認していない。公式説明: https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/
+- ロジック確認: static.test.mjs / build.test.mjs の9テスト成功。ライブラリを除去する実装修正は不要と判断。今回は画面の見た目を変更しておらず、視覚・実機テストおよび再デプロイは行っていない。
