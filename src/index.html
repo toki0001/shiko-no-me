@@ -17,6 +17,8 @@
   <link rel="modulepreload" href="./decision-model.mjs">
   <link rel="modulepreload" href="./shortcuts.mjs">
   <link rel="modulepreload" href="./ai-transfer.mjs">
+  <link rel="modulepreload" href="./ai-recovery.mjs">
+  <link rel="modulepreload" href="./ai-drafts.mjs">
 </head>
 <body>
   <a class="skip-link" href="#board">思考ボードへ</a>
@@ -31,6 +33,7 @@
 <h2>ノート</h2>
 <button class="icon-button" id="new-notebook" title="新しいノート" aria-label="新しいノート">＋</button>
 </div>
+      <button class="side-button" id="new-notebook-ai">AIとの会話から作る</button>
       <nav id="notebooks" aria-label="ノートを選ぶ">
 <button class="notebook is-current">学びが続く勉強会をつくる</button>
 </nav>
@@ -39,10 +42,9 @@
         <div class="board-toolbar" id="board-actions"><button class="button" id="multi-select" aria-pressed="false">複数選択</button><button class="button" id="new-frame">分類枠で囲む</button><span id="board-selection">カードの端から枝を追加</span><button class="button" id="board-edit">考えを編集</button></div>
       </details>
       <div class="side-bottom">
-        <p class="local-label">共有中のデモ</p>
+        <p class="local-label">使い方のデモ</p>
         <a class="side-button" id="open-story" href="./?demo=origin">思考の芽が生まれるまで ↗</a>
         <a class="side-button" id="open-goal-story" href="./?demo=goal">目標を8つの要素に分ける ↗</a>
-        <button class="side-button" id="share-notebook">このノートを共有</button>
         <p class="local-label">このブラウザに自動保存</p>
         <p class="muted small">端末間では共有されません。大切な考えはファイルにも残せます。</p>
         <button class="side-button" id="export-all">ノートを書き出す</button>
@@ -57,7 +59,7 @@
 </div>
     <main class="main">
       <header class="topbar">
-        <span class="preview-version">Ver1.02</span>
+        <span class="preview-version">Ver1.03</span>
         <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
         <span class="save-status" id="save-status" role="status">このブラウザに保存</span>
         <div class="top-actions">
@@ -87,7 +89,7 @@
           <div id="board" class="board" role="region" aria-label="考えを広げるボード" aria-describedby="board-instructions" tabindex="0"></div>
           <section id="goal-overview" class="goal-overview" aria-labelledby="goal-overview-title" hidden>
             <div class="goal-overview-card">
-              <p class="eyebrow">共有デモ・閲覧専用</p>
+              <p class="eyebrow">使い方のデモ・閲覧専用</p>
               <h2 id="goal-overview-title">目標を8つの要素に分けて、行動まで広げる</h2>
               <p id="goal-overview-description">大谷翔平選手の目標設定を参考にした学習用の再構成です。</p>
               <a id="goal-source-link" href="https://harada-educate.jp/archives/gro_with_news/2048/" target="_blank" rel="noopener noreferrer">参考にした記事を読む ↗</a>
@@ -114,7 +116,7 @@
           </div>
           <div class="sr-only" id="board-status" role="status"></div>
           <div id="shared-banner" class="shared-banner" hidden>
-            <span class="shared-label">共有中のデモ・閲覧専用</span>
+            <span class="shared-label">使い方のデモ・閲覧専用</span>
             <div class="story-navigation"><button id="story-prev" aria-label="前の考え">←</button><output id="story-position">1 / 7</output><button id="story-next" aria-label="次の考え">→</button><button class="button" id="shared-details">メモを読む</button></div>
             <button class="button" id="goal-overview-return" hidden>8つの要素へ戻る</button>
             <button class="button" id="goal-view-toggle" hidden>ボードで見る</button>
@@ -134,7 +136,6 @@
 </div>
             <div class="tree-row" style="--depth:1">
 <span class="node-select">どんな人と学びたい？</span>
-<span class="state-label adopted">採用</span>
 </div>
             <div class="tree-row" style="--depth:2">
 <span class="node-select">同じ授業でつまずいている人</span>
@@ -167,6 +168,7 @@
 </div>
           <div class="inspector-body" id="inspector-body">
           <p class="breadcrumb" id="breadcrumb">学びが続く勉強会をつくる</p>
+          <button type="button" class="text-button inspector-ai" id="inspector-ai">この考えをAIに相談</button>
           <label class="field-label" for="node-text">考え</label>
 <textarea id="node-text" maxlength="240" rows="3">学びが続く勉強会をつくる</textarea>
           <label class="field-label" for="node-note">メモ・判断した理由</label>
@@ -245,6 +247,11 @@
             <strong>会話をノートにする</strong><span>AIとの会話を新しいノートに整理する</span>
           </button>
         </div>
+        <section class="ai-draft-resumes" id="ai-draft-resumes" aria-labelledby="ai-draft-resumes-title" hidden>
+          <h4 id="ai-draft-resumes-title">途中の相談</h4>
+          <div id="ai-draft-resume-list"></div>
+          <p id="ai-draft-resume-status" class="ai-status" role="status" aria-live="polite"></p>
+        </section>
       </section>
 
       <section class="ai-step-section" id="ai-request-section" aria-labelledby="ai-request-heading" data-ai-stage="request" hidden>
@@ -274,13 +281,8 @@
           <textarea id="ai-question" rows="3" maxlength="1200">この考えの見落としを探し、次に試せる小さな行動も提案して。</textarea>
         </details>
         <details class="ai-detail ai-prompt-details">
-          <summary>依頼文を確認する・AIサービスを開く</summary>
+          <summary>依頼文の内容を見る</summary>
           <p class="muted small" id="ai-privacy-note"></p>
-          <nav class="ai-providers" aria-label="AIサービスを開く">
-            <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a>
-            <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Gemini</a>
-            <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Claude</a>
-          </nav>
           <textarea id="prompt-preview" class="ai-prompt-text" rows="8" readonly aria-label="AIに渡す依頼文"></textarea>
         </details>
         <p id="copy-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
@@ -302,13 +304,22 @@
         </nav>
         <label class="field-label" for="proposal-input">返答</label>
         <textarea id="proposal-input" class="ai-response-input" rows="8" maxlength="100000" spellcheck="false" aria-describedby="ai-response-help" placeholder="AIの返答をここに貼り付けます"></textarea>
+        <p class="muted small ai-draft-scope">返答と依頼内容はこのブラウザに保存されます。ノートに入るのは追加を確定した後です。</p>
+        <p id="ai-draft-status" class="ai-status" role="status" aria-live="polite"></p>
+        <button type="button" class="text-button ai-draft-discard" id="discard-ai-draft" hidden>この返答の下書きを破棄</button>
         <p class="form-error" id="proposal-error" role="alert"></p>
         <div class="ai-format-recovery" id="ai-format-recovery" hidden>
-          <p>返答の形を整え直せます。同じAIの会話に依頼文を貼り、返ってきた文章をもう一度ここへ貼ってください。</p>
-          <button type="button" class="button" id="copy-format-prompt">形式を整える依頼文をコピー</button>
-          <p id="format-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
-          <details id="format-prompt-details">
-            <summary>形式を整える依頼文を見る</summary>
+          <p id="ai-recovery-intro">返答の一部を選んで確認できます。元の文章は残ります。</p>
+          <div id="ai-recovery-candidates" class="ai-recovery-candidates" role="group" aria-label="確認する返答の部分"></div>
+          <details id="ai-recovery-unimported" hidden>
+            <summary>取り込まれない文章を見る</summary>
+            <div id="ai-recovery-unimported-list" class="ai-recovery-unimported"></div>
+          </details>
+          <details class="ai-reformat-details">
+            <summary>返答の形式を整える依頼文を見る</summary>
+            <p class="muted small">同じAIの会話にこの依頼文を貼り、返答をもう一度ここへ貼れます。</p>
+            <button type="button" class="button" id="copy-format-prompt">形式を整える依頼文をコピー</button>
+            <p id="format-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
             <textarea id="format-prompt-preview" class="ai-prompt-text" rows="8" readonly aria-label="返答の形式を整える依頼文"></textarea>
           </details>
         </div>
@@ -393,6 +404,7 @@
   <dialog id="summary-dialog" aria-labelledby="summary-title" class="summary-dialog">
     <div class="dialog-heading"><h2 id="summary-title">判断を持ち帰る</h2><button type="button" class="icon-button" data-close aria-label="まとめを閉じる">×</button></div>
     <p class="muted">採用した案も、まだ迷っている案も、理由と一緒に残します。</p>
+    <label class="summary-related-option"><input type="checkbox" id="decision-summary-related" checked>理由やこの先の考えも含める</label>
     <label class="field-label" for="decision-summary">この問いのまとめ</label><textarea id="decision-summary" readonly rows="14"></textarea>
     <p id="summary-feedback" role="status" class="muted small">コピーして、普段のノートやチャットに貼り付けられます。</p>
     <div class="dialog-actions"><button class="button" id="download-summary">文章ファイルに保存</button><button class="button primary" id="copy-summary">まとめをコピー</button></div>

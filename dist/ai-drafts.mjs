@@ -1,6 +1,7 @@
 // AI replies are saved separately from notebook contents. Every write checks
 // the exact storage snapshot it was based on so another tab cannot silently win.
 import { TRANSFER_LIMITS } from './ai-transfer.mjs';
+import { LIMITS } from './model.mjs';
 
 export const AI_DRAFT_STORAGE_KEY = 'think-tree-ai-drafts.v1';
 export const AI_DRAFT_LIMITS = Object.freeze({
@@ -9,7 +10,7 @@ export const AI_DRAFT_LIMITS = Object.freeze({
   serializedCharacters: 1_000_000,
 });
 
-const RECORD_KEYS = ['mode', 'bookId', 'parentId', 'answer', 'question', 'scope', 'intent', 'updatedAt'];
+const RECORD_KEYS = ['mode', 'bookId', 'parentId', 'answer', 'question', 'scope', 'intent', 'updatedAt', 'recoveryProgress'];
 const USER_KEYS = ['mode', 'bookId', 'parentId', 'answer', 'question', 'scope', 'intent'];
 const own = (value, key) => Object.hasOwn(value, key);
 let revisionCounter = 0;
@@ -53,8 +54,68 @@ function normalizeIdentity(value) {
   return { mode: value.mode, bookId: value.bookId, parentId: value.mode === 'branch' ? value.parentId : null };
 }
 
+function normalizeRecoveryProgress(value, identity, answer) {
+  exactKeys(value, ['raw', 'options', 'receipts'], ['raw', 'options', 'receipts'], '返答の確認状況');
+  ensure(typeof answer === 'string' && answer.length > 0 && value.raw === answer,
+    '返答の確認状況が現在の返答と一致しません。');
+  const options = value.options;
+  exactKeys(options, ['mode', 'notebookId', 'parentId'], ['mode'], '返答の相談先');
+  ensure(options.mode === 'branch' || options.mode === 'notebook', '返答の相談方法が不正です。');
+  if (options.mode === 'branch') {
+    ensure(identity.mode === 'branch' && isId(options.notebookId) && isId(options.parentId) &&
+      options.notebookId === identity.bookId && options.parentId === identity.parentId,
+    '返答の確認先が元のカードと違います。');
+  } else if (identity.mode === 'notebook') {
+    ensure(options.notebookId === undefined && options.parentId === undefined,
+      '新しいノートの返答確認先が不正です。');
+  } else {
+    ensure(isId(options.notebookId) && isId(options.parentId) &&
+      options.notebookId === identity.bookId && options.parentId === identity.parentId,
+    '返答の確認先が元のカードと違います。');
+  }
+
+  ensure(Array.isArray(value.receipts) && value.receipts.length <= answer.length,
+    '返答の確認状況の候補数が不正です。');
+  const receiptKeys = new Set();
+  let importedCount = 0;
+  const receipts = value.receipts.map((receipt) => {
+    exactKeys(receipt, ['candidateId', 'index', 'notebookId', 'addedIds'],
+      ['candidateId', 'index', 'notebookId', 'addedIds'], '追加済み部分の記録');
+    const { candidateId, index, notebookId, addedIds } = receipt;
+    ensure(typeof candidateId === 'string' && candidateId.length > 0 && candidateId.length <= 512,
+      '返答の確認状況の候補IDが不正です。');
+    ensure(Number.isSafeInteger(index) && index >= 0 && index < LIMITS.nodes,
+      '返答の確認状況のカード番号が不正です。');
+    ensure(isId(notebookId), '追加済みノートのIDが不正です。');
+    const key = JSON.stringify([candidateId, index]);
+    ensure(!receiptKeys.has(key), '返答の確認状況に同じ部分が複数あります。');
+    receiptKeys.add(key);
+    ensure(Array.isArray(addedIds) && addedIds.length > 0 && addedIds.length <= LIMITS.nodes,
+      '追加済みカードの数が不正です。');
+    const seenIds = new Set();
+    const normalizedIds = addedIds.map((id) => {
+      ensure(isId(id), '追加済みカードのIDが不正です。');
+      ensure(!seenIds.has(id), '追加済みカードのIDが重複しています。');
+      seenIds.add(id);
+      importedCount += 1;
+      return id;
+    });
+    return { candidateId, index, notebookId, addedIds: normalizedIds };
+  }).sort((left, right) => left.candidateId.localeCompare(right.candidateId) || left.index - right.index);
+  ensure(importedCount <= answer.length * 2, '返答の確認状況のカード数が不正です。');
+  return {
+    raw: value.raw,
+    options: options.mode === 'branch'
+      ? { mode: 'branch', notebookId: options.notebookId, parentId: options.parentId }
+      : options.notebookId === undefined
+        ? { mode: 'notebook' }
+        : { mode: 'notebook', notebookId: options.notebookId, parentId: options.parentId },
+    receipts,
+  };
+}
+
 function normalizeDraft(value, { fromStorage = false } = {}) {
-  exactKeys(value, fromStorage ? RECORD_KEYS : [...RECORD_KEYS], USER_KEYS, 'AIの下書き');
+  exactKeys(value, RECORD_KEYS, fromStorage ? [...USER_KEYS, 'updatedAt'] : USER_KEYS, 'AIの下書き');
   const identity = normalizeIdentity({
     mode: value.mode,
     bookId: value.bookId,
@@ -75,7 +136,7 @@ function normalizeDraft(value, { fromStorage = false } = {}) {
   } else {
     updatedAt = new Date().toISOString();
   }
-  return {
+  const normalized = {
     ...identity,
     answer: value.answer,
     question: value.question,
@@ -83,6 +144,9 @@ function normalizeDraft(value, { fromStorage = false } = {}) {
     intent: value.intent,
     updatedAt,
   };
+  if (value.recoveryProgress !== undefined)
+    normalized.recoveryProgress = normalizeRecoveryProgress(value.recoveryProgress, identity, value.answer);
+  return normalized;
 }
 
 function textCharacters(drafts) {

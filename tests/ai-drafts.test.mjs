@@ -91,6 +91,97 @@ test('draft text safely round-trips by mode, notebook, and parent without storin
   assert.equal(aiDraftSessionKey(restored.drafts[0]), '["branch","book-one","parent-one"]');
 });
 
+test('validated recovery progress round-trips with its raw answer and older drafts without progress still load', async () => {
+  const storage = memoryStorage();
+  const empty = await loadAIDrafts({ storage });
+  const record = branchDraft('parent-one', {
+    answer: '```json\n{"version":2}\n```',
+    recoveryProgress: {
+      raw: '```json\n{"version":2}\n```',
+      options: { mode: 'branch', notebookId: 'book-one', parentId: 'parent-one' },
+      receipts: [
+        { candidateId: 'candidate-0-branch-book-one-parent-one', index: 1, notebookId: 'book-one', addedIds: ['imported-two'] },
+        { candidateId: 'candidate-0-branch-book-one-parent-one', index: 0, notebookId: 'book-one', addedIds: ['imported-one'] },
+      ],
+    },
+  });
+  const saved = await saveAIDraft(record, { storage, expectedRaw: empty.raw, locks: null });
+  assert.equal(saved.ok, true);
+  assert.deepEqual(saved.drafts[0].recoveryProgress, {
+    raw: record.answer,
+    options: { mode: 'branch', notebookId: 'book-one', parentId: 'parent-one' },
+    receipts: [
+      { candidateId: 'candidate-0-branch-book-one-parent-one', index: 0, notebookId: 'book-one', addedIds: ['imported-one'] },
+      { candidateId: 'candidate-0-branch-book-one-parent-one', index: 1, notebookId: 'book-one', addedIds: ['imported-two'] },
+    ],
+  });
+  assert.equal(Object.hasOwn(saved.drafts[0], 'preview'), false);
+  assert.equal(Object.hasOwn(saved.drafts[0], 'transfer'), false);
+
+  const legacyEnvelope = JSON.parse(saved.raw);
+  delete legacyEnvelope.drafts[0].recoveryProgress;
+  legacyEnvelope.revision = 'legacy-without-recovery-progress';
+  storage.values.set(AI_DRAFT_STORAGE_KEY, JSON.stringify(legacyEnvelope));
+  const legacy = await loadAIDrafts({ storage });
+  assert.equal(legacy.ok, true);
+  assert.equal(legacy.drafts[0].answer, record.answer);
+  assert.equal(Object.hasOwn(legacy.drafts[0], 'recoveryProgress'), false);
+});
+
+test('invalid recovery progress is rejected without replacing stored content', async () => {
+  const storage = memoryStorage();
+  const empty = await loadAIDrafts({ storage });
+  const wrongRaw = await saveAIDraft(branchDraft('parent-one', {
+    recoveryProgress: {
+      raw: 'different raw answer',
+      options: { mode: 'branch', notebookId: 'book-one', parentId: 'parent-one' },
+      receipts: [{
+        candidateId: 'candidate-0-branch-book-one-parent-one', index: 0,
+        notebookId: 'book-one', addedIds: ['imported-one'],
+      }],
+    },
+  }), { storage, expectedRaw: empty.raw, locks: null });
+  assert.equal(wrongRaw.ok, false);
+  assert.equal(wrongRaw.code, 'invalid');
+  assert.equal(storage.getItem(AI_DRAFT_STORAGE_KEY), null);
+  const invalid = await saveAIDraft(branchDraft('parent-one', {
+    recoveryProgress: {
+      raw: 'Unimported answer text.',
+      options: { mode: 'branch', notebookId: 'book-one', parentId: 'different-parent' },
+      receipts: [{
+        candidateId: 'candidate-0-branch-book-one-parent-one', index: 0,
+        notebookId: 'book-one', addedIds: ['imported-one'],
+      }],
+    },
+  }), { storage, expectedRaw: empty.raw, locks: null });
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.code, 'invalid');
+  assert.equal(storage.getItem(AI_DRAFT_STORAGE_KEY), null);
+
+  const malformedEnvelope = {
+    version: 1,
+    revision: 'bad-progress',
+    drafts: [{
+      ...branchDraft('parent-one'),
+      updatedAt: new Date(0).toISOString(),
+      recoveryProgress: {
+        raw: 'Unimported answer text.',
+        options: { mode: 'branch', notebookId: 'book-one', parentId: 'parent-one' },
+        receipts: [{
+          candidateId: 'candidate-0-branch-book-one-parent-one', index: -1,
+          notebookId: 'book-one', addedIds: ['imported-one'],
+        }],
+      },
+    }],
+  };
+  const raw = JSON.stringify(malformedEnvelope);
+  storage.values.set(AI_DRAFT_STORAGE_KEY, raw);
+  const restored = await loadAIDrafts({ storage });
+  assert.equal(restored.ok, false);
+  assert.equal(restored.code, 'corrupt');
+  assert.equal(storage.values.get(AI_DRAFT_STORAGE_KEY), raw);
+});
+
 test('sessions remain separate and an individual delete removes only the exact mode/book/parent', async () => {
   const storage = memoryStorage();
   let state = await loadAIDrafts({ storage });
