@@ -1,6 +1,17 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：Ver1.02 AI画面・言葉・開閉操作 / version 19（2026-09-26）
+## 現在の配布：Ver1.03 AIの復旧・下書き・理由のまとめ / version 21（2026-09-26）
+
+- 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 13:29:13 UTC / 22:29:13 JST）。文脈別のAI入口、原文メモと複数候補、返答形式の明示的な切替、依頼文と返答の下書き復元、関連カードを含む判断まとめを反映。開閉ボタンの間隔と表示位置の維持、隠れる全カード数、未対応共有入口も整理。
+- 配布コード: `965a60423b3dc1f0cab593d0b847be947796077f`。GitHub/Sites mainへpushし、同じコミットのmanifestとdistを `git archive` で20ファイルに梱包。archive SHA-256: `c52b14e6d22155965fdc41d15e991db8af0d484a4d03420231e29e2505e3a36a`。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_0d0d64e7f2c48191bfde2a6a84c6abbd`。
+- Deployment: `appgdep_6ab7c89c41a08191b406565643b0d728`。
+- [GitHub Actions](https://github.com/toki0001/shiko-no-me/actions/runs/36245233276) completed/success。構文42ファイル・build・153テスト成功。PC/390幅の復旧・部分追加・Undo・下書き再開と破棄、2タブ競合、4寸法のAI画面と8寸法の編集欄を実操作。独立UXレビューPASS後、形式エラーの内部用語も修正して限定差分を再レビュー済み。
+- 最小160×96カードの100%/86.4%表示で開閉ボタン44px相当、四方向の追加点・四隅との最小間隔約8px。旧v19の0.19px制約は解消。実スマホのタッチ/IME/ソフトキーボード、スクリーンリーダー、各外部AIサービス固有の往復は未検証。匿名の非公開フィードバック受付は既知の残件。詳細QA.md / docs/review-followup-2026-09-26.md / docs/ux-review-followup-2026-09-26.md。
+- 公開確認はSites nativeの成功応答。公開後のブラウザ再検証は行わず、利用者の公開サイトの保存内容は操作していない。version 20は最終文言修正前の保存のみで、公開には使用していない。
+- 提出済み画像URL https://raw.githubusercontent.com/toki0001/shiko-no-me/main/thumbnail.jpg と画像を維持。ローカルSHA-256は `8f7a372a83eac6a67b883f74751f5acbb85fd92e98db2c0d194c6015cd0c4c32`。フォームの再送なし。
+
+## 過去の配布：Ver1.02 AI画面・言葉・開閉操作 / version 19（2026-09-26）
 
 - 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 10:15:24 UTC / 19:15:24 JST）。目的選択と段階別のAI画面、カード中心の説明、単色の開閉矢印を反映。
 - 配布コード: `2071248f9013a4abd8899b51dc4792deb47ad825`。GitHub/Sites mainへpush後、同じコミットのmanifestとdistを `git archive` で18ファイルに梱包して保存。

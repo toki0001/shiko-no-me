@@ -12,6 +12,8 @@
 
 詳しい対応表・実測・画像は [添付レビューへの対応](docs/review-followup-2026-09-26.md)。実スマホのタッチ・IME・ソフトキーボード・スクリーンリーダーは未検証。ノート保存と下書きの追加済み記録は別の保存であり、その短い間にブラウザを強制終了した場合まで重複防止を保証しない。公開状態はLAUNCH-STATE.mdに分離する。
 
+[独立UXレビュー](docs/ux-review-followup-2026-09-26.md)は最終コード965a604でPASS。匿名の非公開フィードバック受付は既知の残件として記録。最終コミットの[GitHub Actions](https://github.com/toki0001/shiko-no-me/actions/runs/36245233276)もcompleted/success。
+
 ## AI画面・文言・カード開閉の再整理（2026-09-26追加）
 
 ロジック: build、構文35ファイル、131テスト成功（fail/skip 0）、git diff --check成功。開閉のキーボード操作と読み上げ名を回帰テストへ追加。UIの段階・主操作数・フォーカスはソース文字列の照合ではなく、実ブラウザー用 `scripts/check-ai-workflow.mjs` で確認した。
