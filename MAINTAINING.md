@@ -19,6 +19,8 @@ AIの多段取り込みは `dist/ai-transfer.mjs` が担当します。依頼文
 
 AI画面のレイアウト確認は `scripts/check-ai-dialog-layout.mjs`、編集パネルは `scripts/check-inspector-layout.mjs` をBrowserスキルのローカルtabへ渡して実行します。長い本文を実際にスクロールし、固定見出し・閉じる・追加操作が動かず届くことを確認します。
 
+重ねて表示する画面を変更したら、Tab/Enterで移動した後に `scripts/check-visible-focus.mjs` の `checkVisibleFocus(tab)` を実行します。選択先がinert/非表示ではなく、別の面に覆われず、画面内で見えることを確認します。目標デモの全体図では、背後のボードへTabが入る修正前の不具合をこの検査で検出しました。
+
 読み込んだJSONとAIの回答は、画面に使う前に検証します。
 文字列はHTMLとして解釈せず、`textContent` または入力欄の `value` に設定してください。
 

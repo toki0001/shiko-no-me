@@ -2418,6 +2418,29 @@ function registerAgentTools() {
     }
   }
 }
+function setGoalOverviewIsolation(enabled) {
+  const isolate = Boolean(enabled && story?.kind === 'goal' && readOnly);
+  for (const target of [
+    $('board'),
+    document.querySelector('.history-controls'),
+    $('board-navigation'),
+    $('board-status'),
+  ])
+    target.inert = isolate;
+}
+function focusGoalStorySelection() {
+  if (viewMode === 'outline') {
+    focusRow();
+    return;
+  }
+  boardView.cardElements
+    .get(selectedId)
+    ?.querySelector('.card-body')
+    ?.focus({ preventScroll: true });
+}
+function focusGoalOverviewCell(index) {
+  document.querySelector(`[data-goal-index="${index}"]`)?.focus({ preventScroll: true });
+}
 function updateGoalOutlineSpace() {
   const outline = $('outline');
   if (story?.kind !== 'goal' || !readOnly || viewMode !== 'outline' || !goalSmall.matches) {
@@ -2433,6 +2456,7 @@ function showStoryStep() {
     overview = goalStory && storyIndex === 0;
   if (goalStory) {
     $('goal-overview').hidden = !overview;
+    setGoalOverviewIsolation(overview);
     $('goal-overview-return').hidden = overview;
     $('goal-view-toggle').hidden = overview || !goalSmall.matches;
     $('goal-overview-title').textContent = story.title;
@@ -2484,26 +2508,35 @@ function showStoryStep() {
 }
 $('story-prev').addEventListener('click', () => {
   if (storyIndex > 0) {
+    const previousIndex = storyIndex;
     storyIndex--;
     showStoryStep();
+    if (story?.kind === 'goal') {
+      if (storyIndex === 0) focusGoalOverviewCell(previousIndex - 1);
+      else focusGoalStorySelection();
+    }
   }
 });
 $('story-next').addEventListener('click', () => {
   if (story && storyIndex < story.steps.length - 1) {
     storyIndex++;
     showStoryStep();
+    if (story?.kind === 'goal') focusGoalStorySelection();
   }
 });
 $('goal-overview-return').addEventListener('click', () => {
   if (story?.kind !== 'goal') return;
+  const returnIndex = storyIndex - 1;
   storyIndex = 0;
   showStoryStep();
+  focusGoalOverviewCell(returnIndex);
 });
 document.querySelectorAll('[data-goal-index]').forEach((control) =>
   control.addEventListener('click', () => {
     if (story?.kind !== 'goal') return;
     storyIndex = Number(control.dataset.goalIndex) + 1;
     showStoryStep();
+    focusGoalStorySelection();
   }),
 );
 $('goal-view-toggle').addEventListener('click', () => {
@@ -2543,6 +2576,7 @@ $('copy-shared').addEventListener('click', async () => {
     document.body.classList.remove('shared-view');
     document.body.classList.remove('goal-story');
     $('goal-overview').hidden = true;
+    setGoalOverviewIsolation(false);
     $('goal-overview-return').hidden = true;
     $('goal-view-toggle').hidden = true;
     $('shared-banner').hidden = true;
