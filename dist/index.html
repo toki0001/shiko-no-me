@@ -1004,6 +1004,10 @@ dialog h3 {
 .alignment-guides { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 6; stroke: #c44747; }
 .edge-hit { pointer-events: stroke; cursor: pointer; }
 .thought-card { position: absolute; width: 224px; height: 116px; background: var(--paper); border: 1px solid var(--strong); border-radius: 12px; box-shadow: 0 4px 12px #213c290a; }
+.thought-card.state-adopted::before, .thought-card.state-parked::before, .thought-card.state-rejected::before { content: ''; position: absolute; z-index: 1; inset: -1px; box-sizing: border-box; border-top: 4px solid transparent; border-radius: inherit; pointer-events: none; }
+.thought-card.state-adopted::before { border-top-color: var(--green); }
+.thought-card.state-parked::before { border-top-color: #aa783e; }
+.thought-card.state-rejected::before { border-top-color: #a5aaa3; }
 .thought-card.is-selected { outline: 2px solid var(--green); outline-offset: 2px; }
 .card-body { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; text-align: left; padding: 16px; border-radius: inherit; }
 .card-text { font-size: 1rem; line-height: 1.55; overflow: hidden; display: -webkit-box; -webkit-line-clamp: var(--card-lines, 2); -webkit-box-orient: vertical; overflow-wrap: anywhere; }

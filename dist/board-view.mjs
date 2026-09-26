@@ -169,9 +169,12 @@ export class BoardView {
     for (const { node, depth } of rows) {
       const childCount = childCounts.get(node.id) ?? 0;
       const hasBranchToggle = childCount > 0 && typeof this.callbacks.branch === 'function';
+      const stateClass = node.state === 'adopted' ? ' state-adopted'
+        : node.state === 'parked' ? ' state-parked'
+          : node.state === 'rejected' ? ' state-rejected' : '';
       const card = el(
         'article',
-        `thought-card${selectedIds.has(node.id) ? ' is-selected' : ''}${hasBranchToggle ? ' has-branch-toggle' : ''}`,
+        `thought-card${stateClass}${selectedIds.has(node.id) ? ' is-selected' : ''}${hasBranchToggle ? ' has-branch-toggle' : ''}`,
       );
       card.dataset.nodeId = node.id;
       const select = el('button', 'card-body');
