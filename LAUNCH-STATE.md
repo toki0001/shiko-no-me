@@ -1,6 +1,15 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：Ver1.02 AI会話の取り込みと目標デモ / version 17（2026-09-26）
+## 現在の配布：Ver1.02 目標デモのフォーカス修正 / version 18（2026-09-26）
+
+- 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 07:04:51 UTC / 16:04:51 JST）。Ver1.02のAI改善と目標デモを含み、全体図の裏へキーボードフォーカスが入る不具合を追加修正。
+- 配布コード: `b27f484ebe1f6b56688a0ff7eff91c9c8543cdc3`。GitHub/Sites mainへpushし、標準workflowで同じコミットの18ファイルを梱包・保存。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_88a3f9984fac8191a6aeae91cade4f1b`。
+- Deployment: `appgdep_6ab76e866c088191a341d41d60a65219`。
+- [GitHub Actions](https://github.com/toki0001/shiko-no-me/actions/runs/36225599957) completed/success。構文34ファイル・build・130テスト成功。修正前に失敗するフォーカス確認スクリプトを追加し、ローカルPC/390幅でTab・Enter、要素への移動/復帰、73カードのコピー、編集モーダルの背景制御を確認。独立コードレビューPASS、最終ローカル画面のconsole error 0。
+- 実機のタッチ/IME/ソフトキーボード/スクリーンリーダーと公開後ブラウザ再検証は未実施。公開確認はSites native成功応答。元のサイトURL・public範囲・サムネイルURLと画像を維持。
+
+## 過去の配布：Ver1.02 AI会話の取り込みと目標デモ / version 17（2026-09-26）
 
 - 本人の約2時間の継続改善依頼により、GPT-6 Luna Maxが実装し、Astraが差分・実操作をレビューして修正を往復した。別LunaによるUI・AI接続の最終レビューもPASS。
 - 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 06:49:51 UTC / 15:49:51 JST）。アプリ内表示はVer1.02。目標デモは同じサイトの `?demo=goal`。
