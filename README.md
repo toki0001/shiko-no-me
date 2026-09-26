@@ -1,5 +1,7 @@
 # 思考の芽
 
+[![Node checks](https://github.com/toki0001/shiko-no-me/actions/workflows/ci.yml/badge.svg)](https://github.com/toki0001/shiko-no-me/actions/workflows/ci.yml)
+
 自分で考えを枝分かれさせ、必要なときだけAIから別の見方を受け取る思考ノートです。
 
 [アプリを開く](https://shiko-no-me-notebook.tokkey20.chatgpt.site/) · [このアイデアが生まれるまでを体験](https://shiko-no-me-notebook.tokkey20.chatgpt.site/?demo=origin)
@@ -45,6 +47,15 @@ npm run dev
 
 ```sh
 npm test
+```
+
+GitHub Actionsでは、pushとpull requestごとに構文確認・HTML生成・Nodeテストを実行します。手元で同じ確認を行い、生成ページがcommit済みの内容と一致するか調べるには、以下を実行します。
+
+```sh
+npm run check:syntax
+npm run build
+npm test
+git diff --exit-code -- dist/index.html
 ```
 
 ## 静的な公開

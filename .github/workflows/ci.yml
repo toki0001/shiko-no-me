@@ -1,0 +1,25 @@
+name: Node checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: npm run check:syntax
+      - name: Build distribution HTML
+        run: npm run build
+      - name: Run tests
+        run: npm test
+      - name: Confirm generated HTML is committed
+        run: git diff --exit-code -- dist/index.html

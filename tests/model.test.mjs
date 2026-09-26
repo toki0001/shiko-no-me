@@ -274,6 +274,16 @@ test('invalid import leaves all current notebooks unchanged', () => {
   const { workspace } = fixture(),
     before = clone(workspace);
   assert.throws(() => importNotebooks(workspace, '{"nodes":[]}'));
+  const valid = clone(workspace.notebooks[0]);
+  const invalid = clone(valid);
+  invalid.id = 'other-notebook';
+  invalid.nodes[1].parentId = 'missing-parent';
+  assert.throws(() =>
+    importNotebooks(
+      workspace,
+      JSON.stringify({ version: 1, activeId: valid.id, notebooks: [valid, invalid] }),
+    ),
+  );
   assert.deepEqual(workspace, before);
 });
 test('new browser saves and reloads exact notebook contents with revision', () => {
@@ -315,6 +325,34 @@ test('quota failure preserves old saved version and in-memory user input', () =>
   assert.equal(storage.getItem(KEY), first);
   assert.equal(workspace.notebooks[0].nodes[0].note, 'valuable draft');
 });
+test('unreadable storage is never treated as an empty target for a new save', () => {
+  const values = new Map(),
+    storage = {
+      getItem() {
+        throw new Error('denied');
+      },
+      setItem(key, value) {
+        values.set(key, value);
+      },
+    },
+    recovered = load(storage);
+  assert.equal(recovered.blocked, true);
+  assert.throws(() => save(storage, recovered.workspace, recovered.raw), /保存できません/);
+  assert.equal(values.size, 0);
+});
+test('backup write failure preserves the current save and in-memory edit', () => {
+  const storage = storageFixture(),
+    { workspace } = fixture(),
+    first = save(storage, workspace, null);
+  workspace.notebooks[0].nodes[0].note = 'valuable edit';
+  storage.setItem = (key, value) => {
+    if (key === BACKUP_KEY) throw new Error('quota');
+    storage.values.set(key, value);
+  };
+  assert.throws(() => save(storage, workspace, first), /保存できません/);
+  assert.equal(storage.getItem(KEY), first);
+  assert.equal(workspace.notebooks[0].nodes[0].note, 'valuable edit');
+});
 test('corrupt data is never silently overwritten; a valid backup can be displayed', () => {
   const storage = storageFixture(),
     { workspace } = fixture(),
@@ -326,6 +364,9 @@ test('corrupt data is never silently overwritten; a valid backup can be displaye
   assert.equal(restored.recovery, true);
   assert.equal(storage.getItem(KEY), 'corrupt');
   assert.deepEqual(restored.workspace, workspace);
+  assert.throws(() => save(storage, restored.workspace, restored.raw), /保存できません/);
+  assert.equal(storage.getItem(KEY), 'corrupt');
+  assert.equal(storage.getItem(BACKUP_KEY), first);
 });
 test('unavailable or entirely corrupt storage still provides an exportable workspace', () => {
   for (const storage of [

@@ -31,10 +31,13 @@ AIの提案も、受け取りだけでは本体に入りません。
 アプリ実行用の外部パッケージをインストールする必要はありません。
 
 ```sh
+npm run check:syntax
 npm run build
 npm test
 npm run dev
 ```
+
+`check:syntax` はNode標準の構文解析でserver、build scripts、配布モジュール、テストを確認します。build testは `dist/index.html` が `src/index.html` と各ソース資産から生成されることを確認します。GitHub Actionsはこれらとテストを実行し、build後に生成HTMLの差分が残れば失敗します。
 
 テストは構造、保存、配置、履歴、ズームの処理を確認します。
 実ブラウザの操作を代替するものではないため、画面の変更時には保存と再読み込み、取り消しとやり直し、PCとスマホ幅の表示も確認してください。

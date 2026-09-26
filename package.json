@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "check:syntax": "node scripts/check-syntax.mjs",
     "dev": "npm run build && node server.mjs",
     "test": "node --test tests/*.test.mjs"
   }
