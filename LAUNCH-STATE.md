@@ -1,6 +1,15 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：Ver1.03 AIの復旧・下書き・理由のまとめ / version 21（2026-09-26）
+## 現在の配布：Ver1.03 ボードの判断色 / version 22（2026-09-26）
+
+- 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 14:07:22 UTC / 23:07:22 JST）。通常ノートのカード上辺へ、比較画面と同色の採用/保留/見送りを表示。未判断は従来の枠線を維持。
+- 配布コード: `31da1add887c5e0e30bc2ad8ac981ca95fd60049`。GitHub/Sites mainへpush、標準Sites workflowで同じコードの20ファイルを梱包。archive SHA-256: `7ba013f8fac5cf88d6e69bc0579f78c6d42a5a5ded5f8cbcba89d9dfbca6effc`。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_3c98629c0f1c81919a8d8c83304de66c`。
+- Deployment: `appgdep_6ab7d18d3d308191ad5760df58136324`。
+- [GitHub Actions](https://github.com/toki0001/shiko-no-me/actions/runs/36247344251) completed/success。build・構文42ファイル・153テスト成功。PC/スマホ幅の状態色・選択・開閉、8寸法の編集欄を実画面で確認。Luna Max実装をAstraが角丸修正までレビューし、別Luna Maxの限定差分レビューもPASS。実機タッチは未検証。
+- 公開確認はSites nativeの成功応答。公開後のブラウザ再検証は行わず、公開サイトの保存内容は操作していない。サイトURL・public範囲・提出済み画像URL/画像は維持。
+
+## 過去の配布：Ver1.03 AIの復旧・下書き・理由のまとめ / version 21（2026-09-26）
 
 - 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 13:29:13 UTC / 22:29:13 JST）。文脈別のAI入口、原文メモと複数候補、返答形式の明示的な切替、依頼文と返答の下書き復元、関連カードを含む判断まとめを反映。開閉ボタンの間隔と表示位置の維持、隠れる全カード数、未対応共有入口も整理。
 - 配布コード: `965a60423b3dc1f0cab593d0b847be947796077f`。GitHub/Sites mainへpushし、同じコミットのmanifestとdistを `git archive` で20ファイルに梱包。archive SHA-256: `c52b14e6d22155965fdc41d15e991db8af0d484a4d03420231e29e2505e3a36a`。
