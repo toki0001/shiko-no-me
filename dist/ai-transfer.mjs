@@ -54,7 +54,8 @@ const dataKeys = (record, allowed, label) => {
 };
 const exactKeys = (record, allowed, required, label) => {
   dataKeys(record, allowed, label);
-  for (const key of required) fail(own(record, key), `${label}に${key}がありません。`);
+  for (const key of required)
+    fail(own(record, key), `${label}に必要な情報が足りません。返答の形式を整える依頼文を使って、AIに修正を依頼してください。`);
 };
 const freezeDeep = (value) => {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -72,7 +73,7 @@ function normalizeBranch(source, depth, counter, { allowLegacy = false } = {}) {
   const text = textValue(source.text, LIMITS.title, '考え', true);
   const note = source.note === undefined ? '' : noteValue(source.note, 'メモ');
   const rawChildren = source.children === undefined ? [] : source.children;
-  fail(Array.isArray(rawChildren), '枝のchildrenは配列にしてください。');
+  fail(Array.isArray(rawChildren), 'カードのつながりを読み取れませんでした。返答の形式を整える依頼文を使って、AIに修正を依頼してください。');
   const children = rawChildren.map((child) => normalizeBranch(child, depth + 1, counter));
   return { text, note, children };
 }
@@ -89,12 +90,12 @@ function normalizeBranchBody(body, options) {
   if (isV1) {
     fail(body.version === 1, '対応していないAI回答形式です。');
   } else {
-    fail(body.version === 2 && body.kind === 'branches', '枝の回答はversion 2・kind branchesにしてください。');
+    fail(body.version === 2 && body.kind === 'branches', 'カードを追加する返答として読み取れませんでした。返答の形式を整える依頼文を使って、AIに修正を依頼してください。');
   }
   fail(isId(body.notebookId) && isId(body.parentId), '回答の追加先IDが不正です。');
   fail(body.notebookId === options.notebookId && body.parentId === options.parentId,
     '回答の追加先が相談時と違います。対象の枝で相談し直してください。');
-  fail(Array.isArray(body.branches) && body.branches.length > 0, 'branchesに1個以上の案を入れてください。');
+  fail(Array.isArray(body.branches) && body.branches.length > 0, '追加する考えが見つかりません。返答の形式を整える依頼文を使って、AIに修正を依頼してください。');
   const counter = { count: 0 };
   const branches = body.branches.map((branch) => normalizeBranch(branch, 1, counter, { allowLegacy: isV1 }));
   const depth = branches.reduce((max, branch) => Math.max(max, branchDepth(branch)), 0);
@@ -111,8 +112,8 @@ function normalizeBranchBody(body, options) {
 
 function normalizeNotebookBody(body, options = {}) {
   exactKeys(body, ['version', 'kind', 'title', 'note', 'children'], ['version', 'kind', 'title', 'children'], '回答');
-  fail(body.version === 2 && body.kind === 'notebook', 'ノートの回答はversion 2・kind notebookにしてください。');
-  fail(Array.isArray(body.children) && body.children.length > 0, 'childrenに1個以上の考えを入れてください。');
+  fail(body.version === 2 && body.kind === 'notebook', '新しいノートに使う返答として読み取れませんでした。返答の形式を整える依頼文を使って、AIに修正を依頼してください。');
+  fail(Array.isArray(body.children) && body.children.length > 0, 'ノートに含める考えが見つかりません。返答の形式を整える依頼文を使って、AIに修正を依頼してください。');
   const title = textValue(body.title, LIMITS.title, 'ノート名', true);
   const note = body.note === undefined ? '' : noteValue(body.note, 'ノートのメモ');
   const counter = { count: 1 };

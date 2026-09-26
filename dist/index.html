@@ -4984,6 +4984,7 @@ function renderRecoveryPanel(recovery = aiRecoveryState) {
           : remaining.find((part) => part.reason)?.reason ||
             '文章はそのまま残っています。読み取れる形の部分があれば、ここから確認できます。';
   $('ai-recovery-intro').textContent = intro;
+  $('ai-recovery-intro').hidden = candidates.length === 0;
   $('discard-ai-draft').hidden = !currentAIDraftRecord();
 }
 function previewRecoveryCandidate(candidateId, { asNotebook = false } = {}) {

@@ -181,7 +181,7 @@ test('unknown kinds and malformed opposite-mode JSON stay strict', () => {
   };
   assert.throws(
     () => parseTransfer(json(unknownBranchKind), { mode: 'branch', notebookId: book.id, parentId: book.rootId }),
-    (error) => /枝の回答はversion 2/.test(error.message) && !/会話をノートにする/.test(error.message),
+    (error) => /カードを追加する返答として読み取れません/.test(error.message) && !/会話をノートにする/.test(error.message),
   );
 
   const malformedNotebook = {
