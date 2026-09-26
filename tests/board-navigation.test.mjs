@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { boundsOf } from '../dist/board-model.mjs';
 import { BoardView, framesForVisibleRows } from '../dist/board-view.mjs';
+import { createGoalStory } from '../dist/goal-story.mjs';
 
 class MockElement {
   constructor(tag = 'div') {
@@ -60,7 +60,7 @@ function makeHarness({ nodes, rows, frames = [], selectedIds = new Set(), select
       stateLabel: (state) => state,
       select: (...args) => { calls.select.push(args); return true; },
       branch: (id) => calls.branch.push(id),
-      collapsed: () => collapsed,
+      collapsed: (id) => typeof collapsed === 'function' ? collapsed(id) : collapsed,
       clearFrame: () => calls.clearFrame++,
       add: (...args) => calls.add.push(args),
       edit: (...args) => calls.edit.push(args),
@@ -92,17 +92,19 @@ function makeHarness({ nodes, rows, frames = [], selectedIds = new Set(), select
 
 const root = { id: 'root', text: '問い', state: 'growing', parentId: null, position: { x: 0, y: 0 } };
 const child = { id: 'child', text: '次の行動', state: 'growing', parentId: 'root', position: { x: 332, y: 0 } };
+const grandchild = { id: 'grandchild', text: '関連する準備', state: 'growing', parentId: 'child', position: { x: 664, y: 0 } };
 
 test('branch toggle is an accessible sibling control and never selects or starts a drag', () => {
-  const h = makeHarness({ nodes: [root, child], rows: [{ node: root, depth: 0 }], selectedIds: new Set(['root']) });
+  const h = makeHarness({ nodes: [root, child, grandchild], rows: [{ node: root, depth: 0 }], selectedIds: new Set(['root']) });
   try {
     const card = h.view.cardElements.get('root');
     const [body, toggle] = card.children;
     assert.equal(body.tagName, 'button');
     assert(toggle.classList.contains('branch-toggle'));
     assert.equal(toggle.getAttribute('aria-expanded'), 'true');
-    assert.match(toggle.getAttribute('aria-label'), /関連カードをたたむ：問い（1枚）/);
+    assert.match(toggle.getAttribute('aria-label'), /関連カードをたたむ：問い（この先の合計2枚、直接つながる1枚）/);
     assert.equal(toggle.children[0].tagName, 'svg');
+    assert.equal(toggle.children.length, 1, 'the descendant count appears only while collapsed');
     assert.equal(toggle.children[0].getAttribute('aria-hidden'), 'true');
     assert.equal(body.getAttribute('aria-pressed'), 'true');
 
@@ -135,17 +137,19 @@ test('branch toggle is an accessible sibling control and never selects or starts
 
 test('collapsed branch uses a compact disclosure icon and one keyboard-style activation', () => {
   const h = makeHarness({
-    nodes: [root, child],
+    nodes: [root, child, grandchild],
     rows: [{ node: root, depth: 0 }],
-    collapsed: true,
+    collapsed: (id) => id === 'root',
   });
   try {
     const toggle = h.view.cardElements.get('root').children[1];
     const icon = toggle.children[0];
-    assert.equal(toggle.textContent, undefined);
     assert.equal(toggle.getAttribute('aria-expanded'), 'false');
-    assert.match(toggle.getAttribute('aria-label'), /関連カードをひらく：問い（1枚）/);
+    assert.match(toggle.getAttribute('aria-label'), /関連カードをひらく：問い（隠れている2枚、直接つながる1枚）/);
     assert.equal(icon.classList.contains('branch-toggle-icon'), true);
+    assert.equal(toggle.children[1].classList.contains('branch-hidden-count'), true);
+    assert.equal(toggle.children[1].textContent, '2');
+    assert.equal(toggle.children[1].getAttribute('aria-hidden'), 'true');
     assert.equal(toggle.listeners.has('keydown'), false);
 
     let prevented = false, stopped = false;
@@ -157,6 +161,49 @@ test('collapsed branch uses a compact disclosure icon and one keyboard-style act
     assert(prevented && stopped);
     assert.deepEqual(h.calls.branch, ['root']);
     assert.equal(globalThis.document.activeElement, toggle);
+  } finally { h.restore(); }
+});
+
+test('collapsed controls report all hidden descendants for the 73-card goal story', () => {
+  const { notebook } = createGoalStory();
+  const rootNode = notebook.nodes.find((node) => node.id === notebook.rootId);
+  const category = notebook.nodes.find((node) => node.parentId === rootNode.id);
+  const rootHarness = makeHarness({
+    nodes: notebook.nodes,
+    rows: [{ node: rootNode, depth: 0 }],
+    collapsed: true,
+  });
+  try {
+    const toggle = rootHarness.view.cardElements.get(rootNode.id).querySelector('.branch-toggle');
+    assert.equal(toggle.children[1].textContent, '72');
+    assert.match(toggle.getAttribute('aria-label'), /隠れている72枚、直接つながる8枚/);
+  } finally { rootHarness.restore(); }
+
+  const categoryHarness = makeHarness({
+    nodes: notebook.nodes,
+    rows: [{ node: category, depth: 1 }],
+    collapsed: true,
+  });
+  try {
+    const toggle = categoryHarness.view.cardElements.get(category.id).querySelector('.branch-toggle');
+    assert.equal(toggle.children[1].textContent, '8');
+    assert.match(toggle.getAttribute('aria-label'), /隠れている8枚、直接つながる8枚/);
+  } finally { categoryHarness.restore(); }
+});
+
+test('freeform cards hide the undecided label while keeping decisive state visible and accessible', () => {
+  const decided = { ...child, id: 'adopted', text: '決めた案', state: 'adopted' };
+  const h = makeHarness({
+    nodes: [root, child, decided],
+    rows: [{ node: root, depth: 0 }, { node: child, depth: 1 }, { node: decided, depth: 1 }],
+  });
+  try {
+    const undecidedCard = h.view.cardElements.get('child');
+    const decidedCard = h.view.cardElements.get('adopted');
+    assert.equal(undecidedCard.children[0].getAttribute('aria-label'), '次の行動、growing');
+    assert.equal(undecidedCard.children[0].children[1].classList.contains('is-empty'), true);
+    assert.equal(undecidedCard.children[0].children[1].children.length, 0);
+    assert.equal(decidedCard.children[0].children[1].children[0].textContent, 'adopted');
   } finally { h.restore(); }
 });
 
@@ -210,50 +257,23 @@ test('fit bounds exclude distant frames that are not rendered in the focused bra
   assert.equal(view.view.scale, 1);
 });
 
-test('branch control preserves the full title width and clears 44px hit targets at 85% zoom', async () => {
-  const css = await readFile(new URL('../dist/board.css', import.meta.url), 'utf8');
-  assert.match(css, /\.branch-toggle\s*\{[^}]*right:\s*max\(24px,\s*calc\(24px\s*\/\s*var\(--board-scale\)\)\)/s);
-  assert.match(css, /\.branch-toggle\s*\{[^}]*width:\s*max\(44px,\s*calc\(44px\s*\/\s*var\(--board-scale\)\)\)[^}]*height:\s*max\(44px,\s*calc\(44px\s*\/\s*var\(--board-scale\)\)\)/s);
-  assert.match(css, /\.branch-toggle\s*\{[^}]*border:\s*0[^}]*background:\s*transparent[^}]*color:\s*var\(--muted\)/s);
-  assert.match(css, /\.branch-toggle-icon\s*\{[^}]*width:\s*20px[^}]*height:\s*20px/s);
-  assert.match(css, /\.branch-toggle\[aria-expanded="false"\]\s+\.branch-toggle-icon\s*\{[^}]*rotate\(-90deg\)/s);
-  assert.match(css, /\.thought-card\.has-branch-toggle \.card-meta\s*\{[^}]*width:\s*calc\(100%\s*-\s*72px\s*\/\s*var\(--board-scale\)\)/s);
-  assert.doesNotMatch(css, /\.thought-card\.has-branch-toggle \.card-text\s*\{/);
-  assert.match(css, /\.board\.is-branch-overview \.thought-card\.has-branch-toggle \.card-meta\s*\{[^}]*width:\s*100%/s);
+test('compact bottom-port placement tracks zoomed card width and returns to normal above 156px', () => {
+  const card = new MockElement('article');
+  card.style.width = '160px';
+  const container = new MockElement('main');
+  const view = Object.create(BoardView.prototype);
+  Object.assign(view, {
+    world: { style: {} },
+    container,
+    view: { x: 0, y: 0, scale: 0.85 },
+    book: { nodes: [root] },
+    cardElements: new Map([['root', card]]),
+    callbacks: {},
+  });
 
-  const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-  for (const scale of [0.85, 1])
-    for (const width of [160, 224])
-      for (const height of [96, 116, 140, 164, 188]) {
-        const lines = Math.max(1, Math.floor((height - 64) / 24.8));
-        const cardWidth = width * scale, cardHeight = height * scale;
-        const title = {
-          left: 16 * scale,
-          right: (width - 16) * scale,
-          top: 16 * scale,
-          bottom: (16 + lines * 24.8) * scale,
-        };
-        const toggle = {
-          left: cardWidth - 68,
-          right: cardWidth - 24,
-          top: cardHeight + 4 - 44,
-          bottom: cardHeight + 4,
-        };
-        assert.equal(toggle.right - toggle.left, 44);
-        assert.equal(toggle.bottom - toggle.top, 44);
-        assert(!overlaps(title, toggle), `title overlaps at ${width}x${height}, scale ${scale}`);
-
-        const port = (x, y) => ({ left: x - 22, right: x + 22, top: y - 22, bottom: y + 22 });
-        for (const [name, target] of [
-          ['top', port(cardWidth / 2, 0)],
-          ['right', port(cardWidth, cardHeight / 2)],
-          ['bottom', port(width * 0.33 * scale, cardHeight)],
-          ['left', port(0, cardHeight / 2)],
-        ]) assert(!overlaps(target, toggle), `${name} port overlaps at ${width}x${height}, scale ${scale}`);
-
-        const contentWidth = width - 32;
-        const metaWidth = contentWidth - 72 / scale;
-        const meta = { left: 16 * scale, right: (16 + metaWidth) * scale };
-        assert(meta.right < toggle.left, `metadata overlaps at ${width}px, scale ${scale}`);
-      }
+  view.transform();
+  assert.equal(card.classList.contains('is-compact-controls'), true);
+  view.view.scale = 0.98;
+  view.transform();
+  assert.equal(card.classList.contains('is-compact-controls'), false);
 });

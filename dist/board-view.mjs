@@ -123,8 +123,24 @@ export class BoardView {
     this.visibleFrameIds = visibleFrameIds;
     this.selectedFrame = visibleFrameIds.has(selectedFrame) ? selectedFrame : null;
     const childCounts = new Map();
+    const childrenByParent = new Map();
     for (const node of book.nodes)
-      if (node.parentId) childCounts.set(node.parentId, (childCounts.get(node.parentId) ?? 0) + 1);
+      if (node.parentId) {
+        childCounts.set(node.parentId, (childCounts.get(node.parentId) ?? 0) + 1);
+        const children = childrenByParent.get(node.parentId) ?? [];
+        children.push(node.id);
+        childrenByParent.set(node.parentId, children);
+      }
+    const descendantCount = (nodeId) => {
+      let count = 0;
+      const pending = [...(childrenByParent.get(nodeId) ?? [])];
+      while (pending.length) {
+        const current = pending.pop();
+        count += 1;
+        pending.push(...(childrenByParent.get(current) ?? []));
+      }
+      return count;
+    };
     for (const frame of visibleFrames) {
       const box = el(
         'section',
@@ -165,14 +181,15 @@ export class BoardView {
       select.title = 'ダブルクリックで内容を開く';
       select.append(el('span', 'card-text', node.text));
       const meta = el('span', 'card-meta');
-      meta.append(el('span', 'card-state', this.callbacks.stateLabel(node.state)));
+      if (node.state !== 'growing') meta.append(el('span', 'card-state', this.callbacks.stateLabel(node.state)));
+      else meta.classList.add('is-empty');
       select.append(meta);
       select.addEventListener('click', (event) => {
         if (event.detail === 0 && this.callbacks.select(node.id, event.shiftKey))
           this.revealIfOverview(node.id);
       });
       card.append(select);
-      if (hasBranchToggle) card.append(this.createBranchToggle(node, childCount));
+      if (hasBranchToggle) card.append(this.createBranchToggle(node, childCount, descendantCount(node.id)));
       for (const side of SIDES) {
         const names = { right: '右', bottom: '下', left: '左', top: '上' };
         const port = el('button', `branch-port port-${side}`, '+');
@@ -199,11 +216,11 @@ export class BoardView {
       (replacement?.querySelector(focusPart) ?? this.container).focus({ preventScroll: true });
     }
   }
-  createBranchToggle(node, childCount) {
+  createBranchToggle(node, childCount, totalCount) {
     const isCollapsed = Boolean(this.callbacks.collapsed?.(node.id));
     const label = isCollapsed
-      ? `関連カードをひらく：${node.text}（${childCount}枚）`
-      : `関連カードをたたむ：${node.text}（${childCount}枚）`;
+      ? `関連カードをひらく：${node.text}（隠れている${totalCount}枚、直接つながる${childCount}枚）`
+      : `関連カードをたたむ：${node.text}（この先の合計${totalCount}枚、直接つながる${childCount}枚）`;
     const toggle = el('button', 'branch-toggle');
     toggle.type = 'button';
     toggle.dataset.branchToggle = 'true';
@@ -224,6 +241,11 @@ export class BoardView {
     chevron.setAttribute('stroke-linejoin', 'round');
     icon.append(chevron);
     toggle.append(icon);
+    if (isCollapsed) {
+      const count = el('span', 'branch-hidden-count', String(totalCount));
+      count.setAttribute('aria-hidden', 'true');
+      toggle.append(count);
+    }
     toggle.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -389,6 +411,12 @@ export class BoardView {
   transform() {
     this.world.style.transform = `translate(${this.view.x}px,${this.view.y}px) scale(${this.view.scale})`;
     this.container.style.setProperty('--board-scale', this.view.scale);
+    for (const node of this.book?.nodes ?? []) {
+      const card = this.cardElements?.get(node.id);
+      if (!card) continue;
+      const width = Number.parseFloat(card.style.width) || cardSize(node).width;
+      card.classList.toggle('is-compact-controls', width * this.view.scale < 156);
+    }
     this.callbacks.zoom?.(this.view.scale);
     this.container.classList.toggle('is-overview', this.view.scale < 0.7);
     this.container.classList.toggle('is-branch-overview', this.view.scale < 0.85);
