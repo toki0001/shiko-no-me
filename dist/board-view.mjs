@@ -202,14 +202,28 @@ export class BoardView {
   createBranchToggle(node, childCount) {
     const isCollapsed = Boolean(this.callbacks.collapsed?.(node.id));
     const label = isCollapsed
-      ? `続きをひらく：${node.text}（${childCount}件）`
-      : `枝をたたむ：${node.text}（${childCount}件）`;
-    const toggle = el('button', 'branch-toggle', isCollapsed ? `開く${childCount}` : '閉じる');
+      ? `関連カードをひらく：${node.text}（${childCount}枚）`
+      : `関連カードをたたむ：${node.text}（${childCount}枚）`;
+    const toggle = el('button', 'branch-toggle');
     toggle.type = 'button';
     toggle.dataset.branchToggle = 'true';
     toggle.setAttribute('aria-label', label);
     toggle.setAttribute('aria-expanded', String(!isCollapsed));
     toggle.title = label;
+    const icon = svg('svg');
+    icon.classList.add('branch-toggle-icon');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('focusable', 'false');
+    const chevron = svg('path');
+    chevron.setAttribute('d', 'm6 9 6 6 6-6');
+    chevron.setAttribute('fill', 'none');
+    chevron.setAttribute('stroke', 'currentColor');
+    chevron.setAttribute('stroke-width', '2');
+    chevron.setAttribute('stroke-linecap', 'round');
+    chevron.setAttribute('stroke-linejoin', 'round');
+    icon.append(chevron);
+    toggle.append(icon);
     toggle.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();

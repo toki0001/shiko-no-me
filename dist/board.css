@@ -23,8 +23,11 @@
 .thought-card.has-branch-toggle .card-meta { width: calc(100% - 72px / var(--board-scale)); height: max(44px, calc(44px / var(--board-scale))); align-items: center; }
 .thought-card.has-branch-toggle .card-state { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .thought-card.has-branch-toggle .port-bottom { left: 33%; }
-.branch-toggle { position: absolute; z-index: 2; right: max(24px, calc(24px / var(--board-scale))); bottom: calc(-4px / var(--board-scale)); width: max(44px, calc(44px / var(--board-scale))); min-width: max(44px, calc(44px / var(--board-scale))); height: max(44px, calc(44px / var(--board-scale))); min-height: max(44px, calc(44px / var(--board-scale))); padding: 0 2px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--green); font-size: max(11px, calc(11px / var(--board-scale))); line-height: 1.2; white-space: nowrap; }
-.branch-toggle:hover, .branch-toggle:focus-visible { border-color: var(--green); background: var(--wash); outline: 2px solid var(--green); outline-offset: 1px; }
+.branch-toggle { position: absolute; z-index: 2; right: max(24px, calc(24px / var(--board-scale))); bottom: calc(-4px / var(--board-scale)); display: grid; place-items: center; width: max(44px, calc(44px / var(--board-scale))); min-width: max(44px, calc(44px / var(--board-scale))); height: max(44px, calc(44px / var(--board-scale))); min-height: max(44px, calc(44px / var(--board-scale))); padding: 0; overflow: visible; border: 0; border-radius: 50%; background: transparent; color: var(--muted); }
+.branch-toggle:hover { background: var(--wash); color: var(--ink); }
+.branch-toggle:focus-visible { background: var(--wash); color: var(--green); outline: 2px solid var(--green); outline-offset: 1px; }
+.branch-toggle-icon { display: block; width: 20px; height: 20px; overflow: visible; transition: transform 140ms ease; }
+.branch-toggle[aria-expanded="false"] .branch-toggle-icon { transform: rotate(-90deg); }
 .branch-port { position: absolute; width: max(44px, calc(44px / var(--board-scale))); height: max(44px, calc(44px / var(--board-scale))); padding: 0; border-radius: 50%; color: var(--green); opacity: 0; transform: translate(-50%, -50%); }
 .branch-port::before { content: ''; position: absolute; inset: 10px; border: 1px solid var(--strong); border-radius: 50%; background: var(--paper); z-index: -1; }
 .branch-port { z-index: 1; font-size: 20px; }

@@ -40,7 +40,7 @@ class MockElement {
   focus() { globalThis.document.activeElement = this; }
 }
 
-function makeHarness({ nodes, rows, frames = [], selectedIds = new Set(), selectedFrame = null }) {
+function makeHarness({ nodes, rows, frames = [], selectedIds = new Set(), selectedFrame = null, collapsed = false }) {
   const previousDocument = globalThis.document;
   globalThis.document = {
     activeElement: null,
@@ -60,7 +60,7 @@ function makeHarness({ nodes, rows, frames = [], selectedIds = new Set(), select
       stateLabel: (state) => state,
       select: (...args) => { calls.select.push(args); return true; },
       branch: (id) => calls.branch.push(id),
-      collapsed: () => false,
+      collapsed: () => collapsed,
       clearFrame: () => calls.clearFrame++,
       add: (...args) => calls.add.push(args),
       edit: (...args) => calls.edit.push(args),
@@ -101,7 +101,9 @@ test('branch toggle is an accessible sibling control and never selects or starts
     assert.equal(body.tagName, 'button');
     assert(toggle.classList.contains('branch-toggle'));
     assert.equal(toggle.getAttribute('aria-expanded'), 'true');
-    assert.match(toggle.getAttribute('aria-label'), /枝をたたむ：問い（1件）/);
+    assert.match(toggle.getAttribute('aria-label'), /関連カードをたたむ：問い（1枚）/);
+    assert.equal(toggle.children[0].tagName, 'svg');
+    assert.equal(toggle.children[0].getAttribute('aria-hidden'), 'true');
     assert.equal(body.getAttribute('aria-pressed'), 'true');
 
     for (const detail of [1, 0]) {
@@ -119,6 +121,7 @@ test('branch toggle is an accessible sibling control and never selects or starts
     assert.deepEqual(h.calls.edit, []);
     assert.deepEqual(h.calls.gesture, []);
     assert.equal(card.classList.contains('is-selected'), true);
+    assert.equal(globalThis.document.activeElement, toggle);
 
     h.view.pointerDown({
       button: 0,
@@ -127,6 +130,33 @@ test('branch toggle is an accessible sibling control and never selects or starts
     });
     assert.equal(h.view.pointers.size, 0);
     assert.equal(h.view.gesture, undefined);
+  } finally { h.restore(); }
+});
+
+test('collapsed branch uses a compact disclosure icon and one keyboard-style activation', () => {
+  const h = makeHarness({
+    nodes: [root, child],
+    rows: [{ node: root, depth: 0 }],
+    collapsed: true,
+  });
+  try {
+    const toggle = h.view.cardElements.get('root').children[1];
+    const icon = toggle.children[0];
+    assert.equal(toggle.textContent, undefined);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+    assert.match(toggle.getAttribute('aria-label'), /関連カードをひらく：問い（1枚）/);
+    assert.equal(icon.classList.contains('branch-toggle-icon'), true);
+    assert.equal(toggle.listeners.has('keydown'), false);
+
+    let prevented = false, stopped = false;
+    toggle.listeners.get('click')({
+      detail: 0,
+      preventDefault() { prevented = true; },
+      stopPropagation() { stopped = true; },
+    });
+    assert(prevented && stopped);
+    assert.deepEqual(h.calls.branch, ['root']);
+    assert.equal(globalThis.document.activeElement, toggle);
   } finally { h.restore(); }
 });
 
@@ -184,6 +214,9 @@ test('branch control preserves the full title width and clears 44px hit targets 
   const css = await readFile(new URL('../dist/board.css', import.meta.url), 'utf8');
   assert.match(css, /\.branch-toggle\s*\{[^}]*right:\s*max\(24px,\s*calc\(24px\s*\/\s*var\(--board-scale\)\)\)/s);
   assert.match(css, /\.branch-toggle\s*\{[^}]*width:\s*max\(44px,\s*calc\(44px\s*\/\s*var\(--board-scale\)\)\)[^}]*height:\s*max\(44px,\s*calc\(44px\s*\/\s*var\(--board-scale\)\)\)/s);
+  assert.match(css, /\.branch-toggle\s*\{[^}]*border:\s*0[^}]*background:\s*transparent[^}]*color:\s*var\(--muted\)/s);
+  assert.match(css, /\.branch-toggle-icon\s*\{[^}]*width:\s*20px[^}]*height:\s*20px/s);
+  assert.match(css, /\.branch-toggle\[aria-expanded="false"\]\s+\.branch-toggle-icon\s*\{[^}]*rotate\(-90deg\)/s);
   assert.match(css, /\.thought-card\.has-branch-toggle \.card-meta\s*\{[^}]*width:\s*calc\(100%\s*-\s*72px\s*\/\s*var\(--board-scale\)\)/s);
   assert.doesNotMatch(css, /\.thought-card\.has-branch-toggle \.card-text\s*\{/);
   assert.match(css, /\.board\.is-branch-overview \.thought-card\.has-branch-toggle \.card-meta\s*\{[^}]*width:\s*100%/s);

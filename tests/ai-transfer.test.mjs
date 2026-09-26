@@ -136,7 +136,7 @@ test('valid JSON from the other transfer mode tells users to copy, switch, and r
   const notebookText = json(notebook);
   assert.throws(
     () => parseTransfer(notebookText, { mode: 'branch', notebookId: book.id, parentId: book.rootId }),
-    (error) => /「会話からノートへ」/.test(error.message)
+    (error) => /「会話をノートにする」/.test(error.message)
       && /この返答をコピー/.test(error.message)
       && /切り替えてから/.test(error.message)
       && /返答欄に貼り直してください/.test(error.message)
@@ -148,7 +148,7 @@ test('valid JSON from the other transfer mode tells users to copy, switch, and r
   const v2Branches = branchPayload(book, book.rootId, [{ text: 'A branch' }]);
   assert.throws(
     () => parseTransfer(json(v2Branches), { mode: 'notebook' }),
-    (error) => /「考えを深める」/.test(error.message)
+    (error) => /「今のカードを広げる」/.test(error.message)
       && /この返答をコピー/.test(error.message)
       && /切り替えてから/.test(error.message)
       && /返答欄に貼り直してください/.test(error.message)
@@ -164,7 +164,7 @@ test('valid JSON from the other transfer mode tells users to copy, switch, and r
   };
   assert.throws(
     () => parseTransfer(json(v1Branches), { mode: 'notebook' }),
-    (error) => /「考えを深める」/.test(error.message)
+    (error) => /「今のカードを広げる」/.test(error.message)
       && /この返答をコピー/.test(error.message)
       && /切り替えてから/.test(error.message)
       && /返答欄に貼り直してください/.test(error.message)
@@ -181,7 +181,7 @@ test('unknown kinds and malformed opposite-mode JSON stay strict', () => {
   };
   assert.throws(
     () => parseTransfer(json(unknownBranchKind), { mode: 'branch', notebookId: book.id, parentId: book.rootId }),
-    (error) => /枝の回答はversion 2/.test(error.message) && !/会話からノートへ/.test(error.message),
+    (error) => /枝の回答はversion 2/.test(error.message) && !/会話をノートにする/.test(error.message),
   );
 
   const malformedNotebook = {
@@ -189,7 +189,7 @@ test('unknown kinds and malformed opposite-mode JSON stay strict', () => {
   };
   assert.throws(
     () => parseTransfer(json(malformedNotebook), { mode: 'branch', notebookId: book.id, parentId: book.rootId }),
-    (error) => /未対応の項目/.test(error.message) && !/会話からノートへ/.test(error.message),
+    (error) => /未対応の項目/.test(error.message) && !/会話をノートにする/.test(error.message),
   );
 });
 

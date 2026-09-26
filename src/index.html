@@ -182,7 +182,7 @@
 </fieldset>
           <p class="source-label" id="node-source">自分の考え</p>
           <details class="color-options"><summary>線の色を変える</summary><div class="line-color-field"><label class="field-label" id="line-color-label" for="line-color">この考えにつながる線の色</label><input id="line-color" type="color" value="#4f7d62"><div id="line-swatches" class="line-swatches" aria-label="線の色の候補"></div><p class="muted small">色の意味は自由。採用・保留の判断とは別です。</p></div></details>
-          <button class="button mobile-only full" id="mobile-sibling">同じ階層に考えを足す</button>
+          <button class="button mobile-only full" id="mobile-sibling">別の案を足す</button>
 <button class="button mobile-only full" id="editor-undo" disabled>元に戻す</button>
 <button class="button mobile-only full" id="editor-redo" disabled>やり直す</button>
           <details class="branch-options">
@@ -234,50 +234,48 @@
       <button type="button" class="icon-button" data-close aria-label="AIの画面を閉じる">×</button>
     </header>
     <div class="ai-dialog-body" id="ai-dialog-body">
-      <div class="ai-intro-flow">
-        <p class="ai-intro">いつものAIと考えを広げ、よさそうな枝をノートに戻せます。</p>
-        <ol class="ai-steps" aria-label="使い方">
-          <li><span>1</span><strong>コピー</strong></li>
-          <li><span>2</span><strong>いつものAIに貼る</strong></li>
-          <li><span>3</span><strong>返答をここへ貼る</strong></li>
-        </ol>
-      </div>
-
-      <div class="ai-mode-switch" role="group" aria-label="AIの使い方">
-        <button type="button" class="ai-mode-button is-selected" data-ai-mode="branch" aria-pressed="true">考えを深める</button>
-        <button type="button" class="ai-mode-button" data-ai-mode="notebook" aria-pressed="false">会話からノートへ</button>
-      </div>
-      <p class="ai-mode-help" id="ai-mode-help"></p>
-      <p class="ai-context" id="ai-target"></p>
-
-      <nav class="ai-step-nav" aria-label="操作場所へ移動">
-        <a href="#ai-request-section">依頼文へ</a>
-        <a href="#ai-response-section">返答を貼る</a>
-      </nav>
-      <div class="ai-workflow-grid">
-      <section class="ai-step-section" id="ai-request-section" aria-labelledby="ai-request-heading">
-        <div class="ai-section-head">
-          <h3 id="ai-request-heading">依頼文を用意する</h3>
-          <button type="button" class="button primary" id="copy-prompt">依頼文をコピー</button>
+      <section class="ai-purpose-stage" id="ai-purpose-stage" aria-labelledby="ai-purpose-heading" data-ai-stage="purpose">
+        <h3 id="ai-purpose-heading" tabindex="-1">何をしますか？</h3>
+        <p class="muted small">いつものAIとのやりとりを、ノートのカードにまとめます。</p>
+        <div class="ai-mode-switch" role="group" aria-label="AIの使い方">
+          <button type="button" class="ai-mode-button" data-ai-mode="branch" aria-pressed="false">
+            <strong>今のカードを広げる</strong><span>見落としや別の見方を探す</span>
+          </button>
+          <button type="button" class="ai-mode-button" data-ai-mode="notebook" aria-pressed="false">
+            <strong>会話をノートにする</strong><span>AIとの会話を新しいノートに整理する</span>
+          </button>
         </div>
-        <p id="copy-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
-        <div id="ai-scope-wrap">
-          <label class="field-label" for="ai-scope">渡す範囲</label>
+      </section>
+
+      <section class="ai-step-section" id="ai-request-section" aria-labelledby="ai-request-heading" data-ai-stage="request" hidden>
+        <div class="ai-step-topline">
+          <p class="ai-step-count">1 / 3</p>
+          <button type="button" class="text-button ai-back" data-ai-back="purpose">目的を選び直す</button>
+        </div>
+        <h3 id="ai-request-heading" tabindex="-1">依頼文を作る</h3>
+        <p class="ai-mode-help" id="ai-mode-help"></p>
+        <p class="ai-context" id="ai-target"></p>
+        <div class="ai-presets" aria-label="AIに頼むこと">
+          <button type="button" class="button is-selected" data-ai-preset="見落としを探す" aria-pressed="true">見落としを探す</button>
+          <button type="button" class="button" data-ai-preset="次の行動に分ける" aria-pressed="false">次の行動を考える</button>
+          <button type="button" class="button" data-ai-preset="別の見方を出す" aria-pressed="false">別の見方を探す</button>
+        </div>
+        <details id="ai-scope-wrap" class="ai-detail">
+          <summary id="ai-scope-summary">渡す内容：このカードから広げた考え</summary>
+          <label class="field-label" for="ai-scope">依頼文に含める内容</label>
           <select id="ai-scope">
-            <option value="branch">選んだ枝と下の考え（上位の見出しも含む）</option>
+            <option value="branch">このカードから広げた考え</option>
             <option value="notebook">このノート全体</option>
           </select>
-        </div>
-        <div class="ai-presets" aria-label="聞き方の例">
-          <button type="button" class="button" data-ai-preset="見落としを探す">見落としを探す</button>
-          <button type="button" class="button" data-ai-preset="次の行動に分ける">次の行動に分ける</button>
-          <button type="button" class="button" data-ai-preset="別の見方を出す">別の見方を出す</button>
-        </div>
-        <label class="field-label" for="ai-question" id="ai-question-label">聞きたいこと（自由に編集）</label>
-        <textarea id="ai-question" rows="2" maxlength="1200">この考えの見落としを探し、次に試せる小さな行動も提案して。</textarea>
-        <p class="muted small" id="ai-privacy-note">選んだ枝と、その下の考え、上位の見出しが入ります。コピー前に確認できます。</p>
-        <details class="ai-prompt-details">
-          <summary>AIサービスを開く・依頼文を見る</summary>
+        </details>
+        <details class="ai-detail ai-custom-question">
+          <summary>依頼文を自分で調整する</summary>
+          <label class="field-label" for="ai-question" id="ai-question-label">聞きたいこと</label>
+          <textarea id="ai-question" rows="3" maxlength="1200">この考えの見落としを探し、次に試せる小さな行動も提案して。</textarea>
+        </details>
+        <details class="ai-detail ai-prompt-details">
+          <summary>依頼文を確認する・AIサービスを開く</summary>
+          <p class="muted small" id="ai-privacy-note"></p>
           <nav class="ai-providers" aria-label="AIサービスを開く">
             <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a>
             <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Gemini</a>
@@ -285,17 +283,28 @@
           </nav>
           <textarea id="prompt-preview" class="ai-prompt-text" rows="8" readonly aria-label="AIに渡す依頼文"></textarea>
         </details>
+        <p id="copy-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
+        <button type="button" class="button primary ai-primary" id="copy-prompt">依頼文をコピー</button>
+        <button type="button" class="text-button ai-existing-answer" data-ai-go="response">返答をすでに持っている</button>
       </section>
 
-      <section class="ai-step-section" id="ai-response-section" aria-labelledby="ai-response-heading">
-        <h3 id="ai-response-heading">返答をプレビューする</h3>
-        <p class="muted small">AIの返答を貼り付けて「プレビューを作る」を押してください。JSONと、見出し付きのMarkdownに対応しています。</p>
-        <label class="field-label" for="proposal-input">AIの返答</label>
+      <section class="ai-step-section" id="ai-response-section" aria-labelledby="ai-response-heading" data-ai-stage="response" hidden>
+        <div class="ai-step-topline">
+          <p class="ai-step-count">2 / 3</p>
+          <button type="button" class="text-button ai-back" data-ai-back="request">依頼文を見直す</button>
+        </div>
+        <h3 id="ai-response-heading" tabindex="-1">AIの返答を貼る</h3>
+        <p class="muted small" id="ai-response-help">コピーした依頼文をいつものAIに貼り、返答をここへ戻してください。</p>
+        <nav class="ai-providers ai-response-providers" aria-label="AIサービスを開く">
+          <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPTを開く</a>
+          <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Geminiを開く</a>
+          <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Claudeを開く</a>
+        </nav>
+        <label class="field-label" for="proposal-input">返答</label>
         <textarea id="proposal-input" class="ai-response-input" rows="8" maxlength="100000" spellcheck="false" aria-describedby="ai-response-help" placeholder="AIの返答をここに貼り付けます"></textarea>
-        <p class="muted small" id="ai-response-help">プレビューでは枝を選べます。上の枝を選ぶと、子の考えも一緒に入ります。</p>
         <p class="form-error" id="proposal-error" role="alert"></p>
         <div class="ai-format-recovery" id="ai-format-recovery" hidden>
-          <p>返答の形式を整え直せます。同じAIの会話に依頼文を貼り、返ってきた文章をもう一度ここへ貼ってください。</p>
+          <p>返答の形を整え直せます。同じAIの会話に依頼文を貼り、返ってきた文章をもう一度ここへ貼ってください。</p>
           <button type="button" class="button" id="copy-format-prompt">形式を整える依頼文をコピー</button>
           <p id="format-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
           <details id="format-prompt-details">
@@ -303,14 +312,25 @@
             <textarea id="format-prompt-preview" class="ai-prompt-text" rows="8" readonly aria-label="返答の形式を整える依頼文"></textarea>
           </details>
         </div>
-        <div class="ai-response-actions">
-          <button type="button" class="button" id="read-proposals">プレビューを作る</button>
-          <button type="button" class="text-button" id="sample-transfer">枝分かれした返答例を試す</button>
-        </div>
+        <details class="ai-detail ai-sample-details">
+          <summary>サンプルで操作を試す</summary>
+          <p class="muted small">固定サンプルで選択と追加を確認できます。貼り付けた返答は残ります。</p>
+          <button type="button" class="text-button" id="sample-transfer">サンプルを表示</button>
+        </details>
         <p id="ai-workflow-status" class="ai-status" role="status" aria-live="polite"></p>
+        <button type="button" class="button primary ai-primary" id="read-proposals">返答を確認する</button>
+      </section>
+
+      <section class="ai-step-section ai-review-section" id="ai-review-section" aria-labelledby="ai-review-heading" data-ai-stage="review" hidden>
+        <div class="ai-step-topline">
+          <p class="ai-step-count">3 / 3</p>
+          <button type="button" class="text-button ai-back" data-ai-back="response">返答を直す</button>
+        </div>
+        <h3 id="ai-review-heading" tabindex="-1">追加する内容を確認</h3>
+        <p class="muted small">追加したい項目を選んでください。ノートへ入るのは、下のボタンを押した後です。</p>
+        <p id="ai-review-status" class="ai-status" role="status" aria-live="polite"></p>
         <div id="ai-transfer-preview" class="ai-transfer-preview" hidden></div>
       </section>
-      </div>
 
       <details class="ai-legacy">
         <summary id="proposal-list-title">以前の形式で受け取った案 <span id="proposal-count"></span></summary>
@@ -341,7 +361,7 @@
 <button class="icon-button" data-close aria-label="閉じる">×</button>
 </div><div class="quick-start"><h3>迷っていることを、決められる形に。</h3><ol><li><strong>広げる</strong> — カードの＋から案を足す。選んで「編集」で文章と理由を書く。</li><li><strong>比べて決める</strong> — 同じ問いの案を並べ、採用・保留・見送りを選ぶ。</li><li><strong>判断をまとめる</strong> — 見送った案も含め、理由をコピーして持ち帰る。</li></ol><p>ボードは余白をドラッグで移動、ホイールで拡大・縮小。PCではカードのダブルクリックでも編集できます。</p></div>
 <h3>考えを枝分かれさせる</h3>
-<p>PCはカードの端に出る＋、スマホはカードのダブルタップで新しい枝を出します。同じカードから繰り返すと別の案が並び、子のカードからはさらに深く考えられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
+<p>PCはカードの端に出る＋、スマホはカードのダブルタップで関連カードを足せます。同じカードから繰り返すと別の案が並び、追加したカードからさらに考えを広げられます。新しいカードに入力して「追加」かEnterで確定します。空欄のまま別の操作へ移ると取り消されます。</p>
 <h3>ボードを動かす</h3>
 <p>カードや枠を動かすと、ほかのカード・枠の端や中心に近づいたところで赤い点線が出て、位置がそろいます。Altを押しながらドラッグすると、吸着せず自由に動かせます。</p>
 <p>カードや余白をドラッグして移動できます。ホイールはカーソルを中心に拡大縮小します。トラックパッドの二本指ピンチも、指の動きに合わせて細かく拡大縮小できます。右上の＋／−でも少しずつ調整できます。「全体を見る」で俯瞰でき、スマホでは小さいカードを選ぶと拡大します。右上の「ノート」→「表示・整理」から「一覧で読む」に切り替えられます。</p>
@@ -355,11 +375,11 @@
 <h3>保存先は、このブラウザ</h3>
 <p>アカウントやクラウド保存はありません。ブラウザのデータ削除やプライベートモードでは失われるため、定期的に「ノートを書き出す」でファイルを保存してください。読み込みは既存ノートを消さず、別のノートとして追加します。</p>
 <h3>キーボード</h3>
-<p>カードを選んで、1＝採用、2＝保留、3＝見送り、0＝考え中。Nで子カード、Shift＋Nで同じ階層にカードを追加できます（初期設定）。入力中は作動しません。</p>
+<p>カードを選んで、1＝採用、2＝保留、3＝見送り、0＝考え中。Nで関連カード、Shift＋Nで別の案を追加できます（初期設定）。入力中は作動しません。</p>
 <button class="button" id="help-shortcuts">ショートカットの一覧・キーを変更</button>
-<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。カードと枠の四つ角はTabで選び、矢印キーでサイズ変更。初期設定ではF2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
+<p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。カードと枠の四つ角はTabで選び、矢印キーでサイズ変更。初期設定ではF2で考えを編集します。一覧表示では↑↓でカードを選択、Enterで別の案を追加、Tab / Shift+Tabでカードのまとまりを切り替え、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
 <h3>AIと考える</h3>
-<p>「考えを深める」では選んだ枝を広げ、「会話からノートへ」では普段のAIとの会話を新しいノートに整理できます。依頼文をコピーしてAIに貼り、返答を貼り付けてプレビューします。枝の追加か新しいノートの作成を押すまで、ノートには入りません。会話をノートにする依頼文に、今見ているノートの本文は含まれません。AIとのやり取りには、利用するサービスのデータ取り扱いが適用されます。</p>
+<p>今のカードを広げる依頼か、AIとの会話を新しいノートにまとめる依頼を選べます。依頼文をコピーして普段のAIに貼り、返答をこの画面へ戻します。内容を確認して追加するまで、ノートには入りません。会話をノートにする依頼文に、今見ているノートの本文は含まれません。AIとのやり取りには、利用するサービスのデータ取り扱いが適用されます。</p>
 </dialog>
   <dialog id="shortcuts-dialog" aria-labelledby="shortcuts-title" class="shortcuts-dialog">
     <div class="dialog-heading"><h2 id="shortcuts-title">ショートカット・キー設定</h2><button type="button" class="icon-button" data-close aria-label="キー設定を閉じる">×</button></div>
