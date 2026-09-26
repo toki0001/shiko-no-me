@@ -1,5 +1,9 @@
 # コードを変更する場合
 
+## WindowsでSitesへ配布する場合
+
+2026-09-26の環境では、標準Sites workflowを実行するPowerShellプロセスの `Path` に `C:\Program Files\Git\bin` と `C:\Program Files\Git\usr\bin` を追加し、`TAR_OPTIONS=--force-local` を設定すると、Git BashとCドライブ表記を含む梱包が動いた。ユーザー全体の設定は変更しない。資格情報はSitesの短期credentialを非表示stdinで渡し、ファイルやコマンド引数には書かない。具体的な配布結果はLAUNCH-STATE.mdに記録する。
+
 ## 変更箇所の入口
 
 - `dist/app.mjs` は画面の操作を、保存と履歴につなぎます。通常の内容変更は `transaction`、文章の入力は `editNode` を確認してください。

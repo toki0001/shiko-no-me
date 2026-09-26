@@ -1,5 +1,20 @@
 # 思考の芽 — 配布状態
 
+## 現在の配布：Ver1.02 AI会話の取り込みと目標デモ / version 17（2026-09-26）
+
+- 本人の約2時間の継続改善依頼により、GPT-6 Luna Maxが実装し、Astraが差分・実操作をレビューして修正を往復した。別LunaによるUI・AI接続の最終レビューもPASS。
+- 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 06:49:51 UTC / 15:49:51 JST）。アプリ内表示はVer1.02。目標デモは同じサイトの `?demo=goal`。
+- 配布コード: `bea22202c52b5c7edee58eb7049d4d40b7bbea41`。AI転送ロジックの先行コミットは `2943b36`。GitHub/Sites mainへ通常pushし、同じコミットの18配布ファイルをSites標準スクリプトで梱包・保存した。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_961bb2a1bf988191b0ac98e8b709bb6e`。
+- Deployment: `appgdep_6ab76b01ffe881918557f53b4af0b582`。
+- GitHub Actions: [配布コードの実行](https://github.com/toki0001/shiko-no-me/actions/runs/36224616088)がcompleted/success。
+- 既存枝への多段追加、AI会話からの新規ノート、JSON/Markdownのプレビュー、枝の選択、一括Undo、形式修正の依頼文、ページ内下書きを追加。アプリから外部AIを直接呼ばず、従来どおり本人が依頼文と返答を貼り付ける。
+- 第2共有デモは1目標・8要素・64行動の73カード。公式掲載内容を参考にし、56行動を補った学習用の再構成と明示。通常ボードには枝の開閉を追加し、部分表示時の分類枠と回転後の位置ずれも修正。
+- ロジック: 構文33ファイル・build・130テスト、生成HTMLの一致・git diff --check成功。視覚/実操作: ローカルPC・390幅のAI取り込み/Undo/保存、8寸法の編集欄、目標デモの縦横画面、実Luna返答・WebMCP呼出を確認。詳細QA.md / docs/ai-review-2026-09-26.md。
+- 実スマホ・IME・ソフトキーボード、各外部AIサービス固有の操作、公開後のブラウザ再検証は未実施。Sitesのnative成功応答を公開確認とする。
+- 提出済みサムネイルURL https://raw.githubusercontent.com/toki0001/shiko-no-me/main/thumbnail.jpg は維持。今回画像の変更なし。ローカルSHA-256は引き続き `8f7a372a83eac6a67b883f74751f5acbb85fd92e98db2c0d194c6015cd0c4c32`。フォーム再送なし。
+- Windowsの標準環境では梱包用bashがPATHに見つからず、GNU tarもCドライブ表記をリモートと解釈した。プロセス内だけGitのbin/usr/binをPathへ追加し、TAR_OPTIONS=--force-localで標準workflowを完走。資格情報はメモリと非表示stdinだけで渡し、ファイルには保存していない。
+
 ## GitHub品質整備・同一URLのサムネイル更新（2026-09-26）
 
 - 本人指定のLuna（Max）実装→Astraレビューを完了。GitHub Actionsで構文、build、テスト、生成HTMLの一致を自動確認するようにした。98テスト成功、保存失敗とJSON一括取込の境界を補強。アプリ実行用のsrc/distは変更なし。
@@ -9,7 +24,7 @@
 - アプリURL https://shiko-no-me-notebook.tokkey20.chatgpt.site とpublic範囲は継続。src/distに差分がないため今回のアプリ再デプロイは不要、稼働版は下記version16のまま。Sitesのソース同期補助スクリプトが作業途中にキャッシュから消失したため、新版の保存・デプロイは実行していない。今回のコード品質と画像の公開先は提出済みGitHub。
 - ロジックとAstraレビューの記録はQA.md / docs/quality-review-2026-09-26.md。ローカルPC/390幅で追加・採用・Undo/Redo・保存再読込・画面を確認。実スマホ・IME・ソフトキーボード、公開後アプリの再検証は今回行っていない。
 
-## 現在の配布：スマホ縦だけ下部編集 / version 16（2026-09-20）
+## 過去の配布：スマホ縦だけ下部編集 / version 16（2026-09-20）
 
 - 同じpublic URLで `succeeded`（2026-09-20 13:03:31 UTC / 22:03:31 JST）。
 - URL: https://shiko-no-me-notebook.tokkey20.chatgpt.site
