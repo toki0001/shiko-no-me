@@ -1,6 +1,17 @@
 # 思考の芽 — 配布状態
 
-## 現在の配布：Ver1.02 目標デモのフォーカス修正 / version 18（2026-09-26）
+## 現在の配布：Ver1.02 AI画面・言葉・開閉操作 / version 19（2026-09-26）
+
+- 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 10:15:24 UTC / 19:15:24 JST）。目的選択と段階別のAI画面、カード中心の説明、単色の開閉矢印を反映。
+- 配布コード: `2071248f9013a4abd8899b51dc4792deb47ad825`。GitHub/Sites mainへpush後、同じコミットのmanifestとdistを `git archive` で18ファイルに梱包して保存。
+- Sites version: `appgprj_6aa5fdc48f048191aa316118958f2567~appgver_8cbc2578f6988191bce20b51ae5bbea9`。
+- Deployment: `appgdep_6ab79b2f29bc8191a8827cfb3b6ebfd7`。
+- [GitHub Actions](https://github.com/toki0001/shiko-no-me/actions/runs/36235134539) completed/success。構文35ファイル・build・131テスト成功。PC/390幅の追加・Undo・下書き・不正入力・重複拒否、4寸法のAI画面と8寸法の編集欄を確認。最終ローカルconsole error 0。独立UXレビューPASS、詳細docs/ux-simplification-2026-09-26.md。
+- 最小160×96カードの85%表示で開閉と下部追加点の間隔が0.19pxになる残課題あり。実機タッチ/IME/ソフトキーボードは未検証。公開確認はSites native成功応答で、公開後ブラウザー再検証はしていない。
+- 今回の作業途中にSites標準workflowファイルがキャッシュから消失したため、開始済みのsource準備を引き継ぎ、nativeの資格情報発行・保存・公開とGitによる同一コミットの梱包で完了。資格情報はメモリと非表示stdinだけで扱い、保存していない。
+- サイトのURL・public範囲・提出済み `main/thumbnail.jpg` URLを維持。画像の変更なし。SHA-256: `8f7a372a83eac6a67b883f74751f5acbb85fd92e98db2c0d194c6015cd0c4c32`。
+
+## 過去の配布：Ver1.02 目標デモのフォーカス修正 / version 18（2026-09-26）
 
 - 同じpublic URL https://shiko-no-me-notebook.tokkey20.chatgpt.site へ `succeeded`（2026-09-26 07:04:51 UTC / 16:04:51 JST）。Ver1.02のAI改善と目標デモを含み、全体図の裏へキーボードフォーカスが入る不具合を追加修正。
 - 配布コード: `b27f484ebe1f6b56688a0ff7eff91c9c8543cdc3`。GitHub/Sites mainへpushし、標準workflowで同じコミットの18ファイルを梱包・保存。
