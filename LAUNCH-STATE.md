@@ -1,5 +1,14 @@
 # 思考の芽 — 配布状態
 
+## GitHub品質整備・同一URLのサムネイル更新（2026-09-26）
+
+- 本人指定のLuna（Max）実装→Astraレビューを完了。GitHub Actionsで構文、build、テスト、生成HTMLの一致を自動確認するようにした。98テスト成功、保存失敗とJSON一括取込の境界を補強。アプリ実行用のsrc/distは変更なし。
+- GitHub mainへ品質整備 `18c4781` と画像・レビュー記録 `1895c5867e90f1df9509c9cc0c2105672bb603af` を通常push。後者の[GitHub Actions実行](https://github.com/toki0001/shiko-no-me/actions/runs/36216328787)はcompleted/success。
+- 提出済み画像URLを維持: https://raw.githubusercontent.com/toki0001/shiko-no-me/main/thumbnail.jpg 。匿名取得でHTTP200、image/jpeg、168,936 bytes。SHA-256は `8f7a372a83eac6a67b883f74751f5acbb85fd92e98db2c0d194c6015cd0c4c32` で完成JPEGと一致。Cache-Controlはmax-age=300。JPEG1586×992px、画像の文字・内容も確認済み。
+- 新画像は内蔵画像生成による作品紹介の概念図。画像待ちは解消。フォームの再送は行っていない。
+- アプリURL https://shiko-no-me-notebook.tokkey20.chatgpt.site とpublic範囲は継続。src/distに差分がないため今回のアプリ再デプロイは不要、稼働版は下記version16のまま。Sitesのソース同期補助スクリプトが作業途中にキャッシュから消失したため、新版の保存・デプロイは実行していない。今回のコード品質と画像の公開先は提出済みGitHub。
+- ロジックとAstraレビューの記録はQA.md / docs/quality-review-2026-09-26.md。ローカルPC/390幅で追加・採用・Undo/Redo・保存再読込・画面を確認。実スマホ・IME・ソフトキーボード、公開後アプリの再検証は今回行っていない。
+
 ## 現在の配布：スマホ縦だけ下部編集 / version 16（2026-09-20）
 
 - 同じpublic URLで `succeeded`（2026-09-20 13:03:31 UTC / 22:03:31 JST）。
