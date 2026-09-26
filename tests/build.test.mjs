@@ -8,7 +8,7 @@ const read = (file) => readFile(new URL('../' + file, import.meta.url), 'utf8');
 test('shipped HTML exactly matches readable sources and keeps CSS cascade order', async () => {
   const template = await read('src/index.html');
   const styles = await Promise.all(
-    ['styles.css', 'board.css', 'focus.css'].map((name) => read('dist/' + name)),
+    ['styles.css', 'board.css', 'focus.css', 'ai.css', 'goal.css'].map((name) => read('dist/' + name)),
   );
   const app = await read('dist/app.mjs');
   assert.equal(await read('dist/index.html'), buildHTML(template, styles, app));

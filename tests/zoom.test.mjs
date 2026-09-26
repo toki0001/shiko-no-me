@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BoardView } from '../dist/board-view.mjs';
-import { CARD } from '../dist/board-model.mjs';
+import { CARD, boundsOf } from '../dist/board-model.mjs';
 
 function harness() {
   const view = Object.create(BoardView.prototype);
@@ -94,6 +94,31 @@ test('a notebook changed while the board is hidden fits when its viewport return
   assert.equal((node.position.y + CARD.height / 2) * view.view.scale + view.view.y, 300);
   const fitted = { ...view.view };
   view.resizeViewport(1000, 600);
+  assert.deepEqual(view.view, fitted);
+});
+
+test('explicit fit records the new viewport before ResizeObserver preserves the center', () => {
+  const { view } = harness();
+  const nodes = [
+    { id: 'root', position: { x: 0, y: 0 } },
+    { id: 'branch', position: { x: 900, y: -200 } },
+    { id: 'detail', position: { x: 1500, y: 300 } },
+  ];
+  view.book = { nodes, frames: [] };
+  view.rows = nodes.map((node) => ({ node }));
+  view.frameElements = new Map();
+  view.container.clientWidth = 844;
+  view.container.clientHeight = 390;
+  view.viewportSize = { width: 568, height: 361 };
+
+  view.fit();
+  const fitted = { ...view.view };
+  const bounds = boundsOf(nodes);
+  assert.deepEqual(view.viewportSize, { width: 844, height: 390 });
+  assert(Math.abs((bounds.x + bounds.width / 2) * fitted.scale + fitted.x - 422) < 1e-9);
+  assert(Math.abs((bounds.y + bounds.height / 2) * fitted.scale + fitted.y - 195) < 1e-9);
+
+  view.resizeViewport(844, 390);
   assert.deepEqual(view.view, fitted);
 });
 

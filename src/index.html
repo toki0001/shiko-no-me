@@ -12,9 +12,11 @@
   <link rel="modulepreload" href="./board-model.mjs">
   <link rel="modulepreload" href="./board-view.mjs">
   <link rel="modulepreload" href="./story.mjs">
+  <link rel="modulepreload" href="./goal-story.mjs">
   <link rel="modulepreload" href="./history.mjs">
   <link rel="modulepreload" href="./decision-model.mjs">
   <link rel="modulepreload" href="./shortcuts.mjs">
+  <link rel="modulepreload" href="./ai-transfer.mjs">
 </head>
 <body>
   <a class="skip-link" href="#board">思考ボードへ</a>
@@ -39,6 +41,7 @@
       <div class="side-bottom">
         <p class="local-label">共有中のデモ</p>
         <a class="side-button" id="open-story" href="./?demo=origin">思考の芽が生まれるまで ↗</a>
+        <a class="side-button" id="open-goal-story" href="./?demo=goal">目標を8つの要素に分ける ↗</a>
         <button class="side-button" id="share-notebook">このノートを共有</button>
         <p class="local-label">このブラウザに自動保存</p>
         <p class="muted small">端末間では共有されません。大切な考えはファイルにも残せます。</p>
@@ -54,7 +57,7 @@
 </div>
     <main class="main">
       <header class="topbar">
-        <span class="preview-version">Ver1.01</span>
+        <span class="preview-version">Ver1.02</span>
         <h1 id="notebook-title">学びが続く勉強会をつくる</h1>
         <span class="save-status" id="save-status" role="status">このブラウザに保存</span>
         <div class="top-actions">
@@ -82,6 +85,28 @@
           <div id="focus-path" class="focus-path" hidden>
 </div>
           <div id="board" class="board" role="region" aria-label="考えを広げるボード" aria-describedby="board-instructions" tabindex="0"></div>
+          <section id="goal-overview" class="goal-overview" aria-labelledby="goal-overview-title" hidden>
+            <div class="goal-overview-card">
+              <p class="eyebrow">共有デモ・閲覧専用</p>
+              <h2 id="goal-overview-title">目標を8つの要素に分けて、行動まで広げる</h2>
+              <p id="goal-overview-description">大谷翔平選手の目標設定を参考にした学習用の再構成です。</p>
+              <a id="goal-source-link" href="https://harada-educate.jp/archives/gro_with_news/2048/" target="_blank" rel="noopener noreferrer">参考にした記事を読む ↗</a>
+              <p class="goal-overview-formula"><strong>1 → 8 → 64</strong><span>大きな目標を8つの視点に分け、それぞれを8つの行動例へ広げます。</span></p>
+              <p class="muted small">要素を選ぶと、行動例を読みやすい大きさで開きます。</p>
+              <div class="goal-overview-grid" role="group" aria-label="目標を広げる8つの要素">
+                <button type="button" class="goal-cell-1" data-goal-index="0" aria-label="1つ目の要素を開く"></button>
+                <button type="button" class="goal-cell-2" data-goal-index="1" aria-label="2つ目の要素を開く"></button>
+                <button type="button" class="goal-cell-3" data-goal-index="2" aria-label="3つ目の要素を開く"></button>
+                <button type="button" class="goal-cell-4" data-goal-index="3" aria-label="4つ目の要素を開く"></button>
+                <div class="goal-overview-root" id="goal-overview-root">ドラフト一位指名を8球団から受けたい</div>
+                <button type="button" class="goal-cell-5" data-goal-index="4" aria-label="5つ目の要素を開く"></button>
+                <button type="button" class="goal-cell-6" data-goal-index="5" aria-label="6つ目の要素を開く"></button>
+                <button type="button" class="goal-cell-7" data-goal-index="6" aria-label="7つ目の要素を開く"></button>
+                <button type="button" class="goal-cell-8" data-goal-index="7" aria-label="8つ目の要素を開く"></button>
+              </div>
+              <p class="goal-overview-note">一部の公式掲載例を除き、行動例はこのデモ用の再構成です。本人の原表全体の転載ではありません。</p>
+            </div>
+          </section>
           <div class="history-controls" role="group" aria-label="操作の履歴"><button class="button" id="undo" aria-label="元に戻す" title="元に戻す（Ctrl / ⌘ + Z）" disabled>←</button><button class="button" id="redo" aria-label="やり直す" title="やり直す（Ctrl / ⌘ + Shift + Z）" disabled>→</button></div>
           <div class="board-navigation" id="board-navigation">
             <span id="board-instructions">余白をドラッグして移動。カードの端の＋で分岐。</span>
@@ -91,6 +116,8 @@
           <div id="shared-banner" class="shared-banner" hidden>
             <span class="shared-label">共有中のデモ・閲覧専用</span>
             <div class="story-navigation"><button id="story-prev" aria-label="前の考え">←</button><output id="story-position">1 / 7</output><button id="story-next" aria-label="次の考え">→</button><button class="button" id="shared-details">メモを読む</button></div>
+            <button class="button" id="goal-overview-return" hidden>8つの要素へ戻る</button>
+            <button class="button" id="goal-view-toggle" hidden>ボードで見る</button>
             <button class="button primary" id="copy-shared">自分のノートにコピー</button>
             <a href="./" class="text-button">自分のノートへ戻る</a>
           </div>
@@ -198,55 +225,104 @@
 </div>
 </form>
 </dialog>
-  <dialog id="ai-dialog" class="wide-dialog" aria-labelledby="ai-title">
-<div class="dialog-heading">
-<div>
-<p class="eyebrow">必要なときだけ</p>
-<h2 id="ai-title">AIと考える</h2>
-</div>
-<button class="icon-button" data-close aria-label="閉じる">×</button>
-</div>
-<p class="muted">ノートをAIへ渡し、返ってきた案をここで選びます。アプリからAIへの自動送信やAPI呼び出しはありません。</p>
-<p class="target-note" id="ai-target">
-</p>
-<div class="ai-grid">
-<section>
-<h3>1. 相談する</h3>
-<label class="field-label" for="ai-question">聞きたいこと</label>
-<textarea id="ai-question" rows="3" maxlength="1200">この考えを深めるために、見落としや別の見方を提案して。</textarea>
-<label class="field-label" for="ai-scope">AIに渡す範囲</label>
-<select id="ai-scope">
-<option value="branch">選んだ枝と、その下の考え</option>
-<option value="notebook">このノート全体</option>
-</select>
-<p class="muted small">コピーした文章をCodexなどに貼り付けます。個人的な内容が含まれていないか、渡す前に確認してください。</p>
-<button class="button primary full" id="copy-prompt">依頼文をコピー</button>
-<details>
-<summary>渡す内容を確認</summary>
-<textarea id="prompt-preview" rows="7" readonly aria-label="AIに渡す依頼文">
-</textarea>
-</details>
-</section>
-<section>
-<h3>2. 返ってきた案を受け取る</h3>
-<label class="field-label" for="proposal-input">AIの回答を貼り付ける</label>
-<textarea id="proposal-input" rows="6" maxlength="100000" spellcheck="false" placeholder="依頼文で指定したJSON形式の回答を貼り付けます">
-</textarea>
-<p class="form-error" id="proposal-error" role="alert">
-</p>
-<button class="button full" id="read-proposals">内容を確認する</button>
-<button class="text-button" id="sample-proposals">取り込みの例を試す</button>
-</section>
-</div>
-<section class="pending-section">
-<h3 id="proposal-list-title" tabindex="-1">まだツリーに入っていない案 <span id="proposal-count">
-</span>
-</h3>
-<p class="muted small">「採用して追加」を押した案だけ、ツリーに入ります。文章は追加後に編集できます。</p>
-<div id="proposals">
-</div>
-</section>
-</dialog>
+  <dialog id="ai-dialog" class="ai-dialog" aria-labelledby="ai-title">
+    <header class="ai-dialog-heading">
+      <div>
+        <p class="eyebrow">必要なときだけ</p>
+        <h2 id="ai-title">AIと考える</h2>
+      </div>
+      <button type="button" class="icon-button" data-close aria-label="AIの画面を閉じる">×</button>
+    </header>
+    <div class="ai-dialog-body" id="ai-dialog-body">
+      <div class="ai-intro-flow">
+        <p class="ai-intro">いつものAIと考えを広げ、よさそうな枝をノートに戻せます。</p>
+        <ol class="ai-steps" aria-label="使い方">
+          <li><span>1</span><strong>コピー</strong></li>
+          <li><span>2</span><strong>いつものAIに貼る</strong></li>
+          <li><span>3</span><strong>返答をここへ貼る</strong></li>
+        </ol>
+      </div>
+
+      <div class="ai-mode-switch" role="group" aria-label="AIの使い方">
+        <button type="button" class="ai-mode-button is-selected" data-ai-mode="branch" aria-pressed="true">考えを深める</button>
+        <button type="button" class="ai-mode-button" data-ai-mode="notebook" aria-pressed="false">会話からノートへ</button>
+      </div>
+      <p class="ai-mode-help" id="ai-mode-help"></p>
+      <p class="ai-context" id="ai-target"></p>
+
+      <nav class="ai-step-nav" aria-label="操作場所へ移動">
+        <a href="#ai-request-section">依頼文へ</a>
+        <a href="#ai-response-section">返答を貼る</a>
+      </nav>
+      <div class="ai-workflow-grid">
+      <section class="ai-step-section" id="ai-request-section" aria-labelledby="ai-request-heading">
+        <div class="ai-section-head">
+          <h3 id="ai-request-heading">依頼文を用意する</h3>
+          <button type="button" class="button primary" id="copy-prompt">依頼文をコピー</button>
+        </div>
+        <p id="copy-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
+        <div id="ai-scope-wrap">
+          <label class="field-label" for="ai-scope">渡す範囲</label>
+          <select id="ai-scope">
+            <option value="branch">選んだ枝と下の考え（上位の見出しも含む）</option>
+            <option value="notebook">このノート全体</option>
+          </select>
+        </div>
+        <div class="ai-presets" aria-label="聞き方の例">
+          <button type="button" class="button" data-ai-preset="見落としを探す">見落としを探す</button>
+          <button type="button" class="button" data-ai-preset="次の行動に分ける">次の行動に分ける</button>
+          <button type="button" class="button" data-ai-preset="別の見方を出す">別の見方を出す</button>
+        </div>
+        <label class="field-label" for="ai-question" id="ai-question-label">聞きたいこと（自由に編集）</label>
+        <textarea id="ai-question" rows="2" maxlength="1200">この考えの見落としを探し、次に試せる小さな行動も提案して。</textarea>
+        <p class="muted small" id="ai-privacy-note">選んだ枝と、その下の考え、上位の見出しが入ります。コピー前に確認できます。</p>
+        <details class="ai-prompt-details">
+          <summary>AIサービスを開く・依頼文を見る</summary>
+          <nav class="ai-providers" aria-label="AIサービスを開く">
+            <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a>
+            <a href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Gemini</a>
+            <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Claude</a>
+          </nav>
+          <textarea id="prompt-preview" class="ai-prompt-text" rows="8" readonly aria-label="AIに渡す依頼文"></textarea>
+        </details>
+      </section>
+
+      <section class="ai-step-section" id="ai-response-section" aria-labelledby="ai-response-heading">
+        <h3 id="ai-response-heading">返答をプレビューする</h3>
+        <p class="muted small">AIの返答を貼り付けて「プレビューを作る」を押してください。JSONと、見出し付きのMarkdownに対応しています。</p>
+        <label class="field-label" for="proposal-input">AIの返答</label>
+        <textarea id="proposal-input" class="ai-response-input" rows="8" maxlength="100000" spellcheck="false" aria-describedby="ai-response-help" placeholder="AIの返答をここに貼り付けます"></textarea>
+        <p class="muted small" id="ai-response-help">プレビューでは枝を選べます。上の枝を選ぶと、子の考えも一緒に入ります。</p>
+        <p class="form-error" id="proposal-error" role="alert"></p>
+        <div class="ai-format-recovery" id="ai-format-recovery" hidden>
+          <p>返答の形式を整え直せます。同じAIの会話に依頼文を貼り、返ってきた文章をもう一度ここへ貼ってください。</p>
+          <button type="button" class="button" id="copy-format-prompt">形式を整える依頼文をコピー</button>
+          <p id="format-prompt-status" class="ai-status" role="status" aria-live="polite"></p>
+          <details id="format-prompt-details">
+            <summary>形式を整える依頼文を見る</summary>
+            <textarea id="format-prompt-preview" class="ai-prompt-text" rows="8" readonly aria-label="返答の形式を整える依頼文"></textarea>
+          </details>
+        </div>
+        <div class="ai-response-actions">
+          <button type="button" class="button" id="read-proposals">プレビューを作る</button>
+          <button type="button" class="text-button" id="sample-transfer">枝分かれした返答例を試す</button>
+        </div>
+        <p id="ai-workflow-status" class="ai-status" role="status" aria-live="polite"></p>
+        <div id="ai-transfer-preview" class="ai-transfer-preview" hidden></div>
+      </section>
+      </div>
+
+      <details class="ai-legacy">
+        <summary id="proposal-list-title">以前の形式で受け取った案 <span id="proposal-count"></span></summary>
+        <p class="muted small">すでに承認待ちに入っている案や、WebMCP経由の案はこちらに残ります。</p>
+        <div id="proposals"></div>
+      </details>
+    </div>
+    <footer class="ai-dialog-footer" id="ai-import-footer" hidden>
+      <p id="ai-selection-summary" class="muted small"></p>
+      <button type="button" class="button primary" id="apply-transfer" disabled>選んだ考えを追加</button>
+    </footer>
+  </dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
 <div class="dialog-heading">
 <h2 id="confirm-title">確認</h2>
@@ -282,8 +358,8 @@
 <p>カードを選んで、1＝採用、2＝保留、3＝見送り、0＝考え中。Nで子カード、Shift＋Nで同じ階層にカードを追加できます（初期設定）。入力中は作動しません。</p>
 <button class="button" id="help-shortcuts">ショートカットの一覧・キーを変更</button>
 <p>ボードのカードと端の＋はTabで選べます。カードや枠の見出しでAlt＋矢印を押すと移動、Shiftも押すと大きく動きます。カードと枠の四つ角はTabで選び、矢印キーでサイズ変更。初期設定ではF2で考えを編集します。一覧表示では↑↓で枝を選択、Enterで同じ階層に追加、Tab / Shift+Tabで階層変更、←→で開閉。Escapeで一覧以外の操作へ戻れます。</p>
-<h3>AIについて</h3>
-<p>AIの契約はこのアプリに含まれません。渡した内容には、利用するAIサービスのデータ取り扱いが適用されます。AIを使わずにノートだけでも使えます。</p>
+<h3>AIと考える</h3>
+<p>「考えを深める」では選んだ枝を広げ、「会話からノートへ」では普段のAIとの会話を新しいノートに整理できます。依頼文をコピーしてAIに貼り、返答を貼り付けてプレビューします。枝の追加か新しいノートの作成を押すまで、ノートには入りません。会話をノートにする依頼文に、今見ているノートの本文は含まれません。AIとのやり取りには、利用するサービスのデータ取り扱いが適用されます。</p>
 </dialog>
   <dialog id="shortcuts-dialog" aria-labelledby="shortcuts-title" class="shortcuts-dialog">
     <div class="dialog-heading"><h2 id="shortcuts-title">ショートカット・キー設定</h2><button type="button" class="icon-button" data-close aria-label="キー設定を閉じる">×</button></div>

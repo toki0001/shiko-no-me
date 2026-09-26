@@ -7,11 +7,30 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 
 test('all local HTML assets and module imports exist and are relative', async () => {
   const html = await readFile(path.join(root, 'dist/index.html'), 'utf8');
-  for (const match of html.matchAll(/(?:src|href)="([^"#][^"]*)"/g)) {
-    if (match[1] === 'https://github.com/toki0001/shiko-no-me/issues/new') continue; // User-initiated feedback link, never a loaded dependency.
-    assert(match[1].startsWith('./'), `not a relative asset: ${match[1]}`);
-    // Navigation links may contain a query; only the pathname is a disk asset.
-    await access(path.join(root, 'dist', match[1].split(/[?#]/)[0]));
+  const outbound = new Set([
+    'https://chatgpt.com/',
+    'https://gemini.google.com/app',
+    'https://claude.ai/new',
+    'https://harada-educate.jp/archives/gro_with_news/2048/',
+    'https://github.com/toki0001/shiko-no-me/issues/new',
+  ]);
+  for (const tag of html.matchAll(/<([a-z][\w-]*)\b([^>]*)>/gi)) {
+    for (const attr of tag[2].matchAll(/\b(src|href)="([^"]+)"/gi)) {
+      const [, name, value] = attr;
+      if (name.toLowerCase() === 'href' && value.startsWith('#')) continue;
+      if (/^https?:\/\//i.test(value)) {
+        assert.equal(tag[1].toLowerCase(), 'a', `external ${name} must be a user-initiated link: ${value}`);
+        assert.equal(name.toLowerCase(), 'href', `external ${name} must not load as an asset: ${value}`);
+        assert(outbound.has(value), `unapproved outbound link: ${value}`);
+        assert(/\btarget="_blank"/.test(tag[2]), `outbound link must open separately: ${value}`);
+        const rel = tag[2].match(/\brel="([^"]+)"/)?.[1].split(/\s+/) ?? [];
+        assert(rel.includes('noopener') && rel.includes('noreferrer'), `outbound link must protect its opener: ${value}`);
+        continue;
+      }
+      assert(value.startsWith('./'), `not a relative asset: ${value}`);
+      // Navigation links may contain a query; only the pathname is a disk asset.
+      await access(path.join(root, 'dist', value.split(/[?#]/)[0]));
+    }
   }
   for (const name of await readdir(path.join(root, 'dist'))) {
     if (!name.endsWith('.mjs')) continue;
@@ -26,7 +45,7 @@ test('contest runtime has no external dependencies, API fetches, script CDN or u
   const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0);
   assert.equal(Object.keys(pkg.devDependencies ?? {}).length, 0);
-  for (const name of ['app.mjs', 'model.mjs', 'storage.mjs', 'board-model.mjs', 'board-view.mjs']) {
+  for (const name of ['app.mjs', 'model.mjs', 'storage.mjs', 'board-model.mjs', 'board-view.mjs', 'ai-transfer.mjs', 'goal-story.mjs']) {
     const code = await readFile(path.join(root, 'dist', name), 'utf8');
     assert(!/\bfetch\s*\(|innerHTML\s*=|eval\s*\(|new Function\s*\(/.test(code), name);
   }
@@ -38,7 +57,7 @@ test('HTML has unique IDs, labels, viewport and manual AI fallback', async () =>
   assert(html.includes('viewport-fit=cover'));
   assert(!/user-scalable=no|maximum-scale/.test(html));
   for (const match of html.matchAll(/\bfor="([^"]+)"/g)) assert(ids.includes(match[1]));
-  for (const id of ['copy-prompt', 'read-proposals', 'export-all', 'undo'])
+  for (const id of ['copy-prompt', 'copy-format-prompt', 'read-proposals', 'export-all', 'undo'])
     assert(ids.includes(id));
 });
 

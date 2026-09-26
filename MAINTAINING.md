@@ -9,6 +9,12 @@
 
 ## 変更時に保つ条件
 
+AIの多段取り込みは `dist/ai-transfer.mjs` が担当します。依頼文の生成、JSON/Markdownの正規化、限界値の検証、選んだ枝の一括反映を画面から分離しています。`dist/model.mjs` の従来の平坦な承認待ちはWebMCP互換用です。追加先ID、選択した子孫、AI出典、考え中の初期状態、失敗時に部分追加しないことを維持してください。
+
+目標分解デモのデータと出典は `dist/goal-story.mjs` / `docs/goal-demo-source.md`、元の企画デモは `dist/story.mjs` にあります。どちらも一般ノートとは別の閲覧用workspaceを使います。
+
+AI画面のレイアウト確認は `scripts/check-ai-dialog-layout.mjs`、編集パネルは `scripts/check-inspector-layout.mjs` をBrowserスキルのローカルtabへ渡して実行します。長い本文を実際にスクロールし、固定見出し・閉じる・追加操作が動かず届くことを確認します。
+
 読み込んだJSONとAIの回答は、画面に使う前に検証します。
 文字列はHTMLとして解釈せず、`textContent` または入力欄の `value` に設定してください。
 

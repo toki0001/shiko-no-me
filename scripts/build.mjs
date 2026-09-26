@@ -8,7 +8,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const read = (file) => readFile(path.join(root, file), 'utf8');
 const template = await read('src/index.html');
 const styles = await Promise.all(
-  ['styles.css', 'board.css', 'focus.css'].map((name) => read('dist/' + name)),
+  ['styles.css', 'board.css', 'focus.css', 'ai.css', 'goal.css'].map((name) => read('dist/' + name)),
 );
 const html = buildHTML(template, styles, await read('dist/app.mjs'));
 await writeFile(path.join(root, 'dist/index.html'), html, 'utf8');

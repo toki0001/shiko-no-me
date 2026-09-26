@@ -18,6 +18,15 @@ const el = (tag, className, text) => {
   return node;
 };
 const svg = (tag) => document.createElementNS('http://www.w3.org/2000/svg', tag);
+
+export function framesForVisibleRows(frames, visibleIds, fullBookView) {
+  return (frames ?? []).filter(
+    (frame) =>
+      frame.nodeIds.some((id) => visibleIds.has(id)) ||
+      (fullBookView && frame.nodeIds.length === 0),
+  );
+}
+
 export class BoardView {
   // workspaceを直接保存せず、確定した操作をcallbacksでappへ返す。
   // ドラッグ途中のpreviewは見た目だけを動かし、指を離してから内容の履歴を一つ作る。
@@ -87,7 +96,8 @@ export class BoardView {
     const focusedFrame = this.container.contains(focused)
       ? focused.closest('.classification-frame')?.dataset.frameId
       : null;
-    const focusPart = focused?.classList.contains('frame-title-input') ? '.frame-title-input' : focused?.dataset.side
+    const focusPart = focused?.classList.contains('branch-toggle') ? '.branch-toggle'
+      : focused?.classList.contains('frame-title-input') ? '.frame-title-input' : focused?.dataset.side
       ? `.port-${focused.dataset.side}`
       : focused?.dataset.corner
         ? `[data-corner="${focused.dataset.corner}"]`
@@ -106,10 +116,19 @@ export class BoardView {
     this.cardElements.clear();
     this.frameElements.clear();
     const shown = new Set(rows.map((row) => row.node.id));
-    for (const frame of book.frames ?? []) {
+    const fullBookView = rows.length === book.nodes.length;
+    const visibleFrames = framesForVisibleRows(book.frames, shown, fullBookView);
+    const visibleFrameIds = new Set(visibleFrames.map((frame) => frame.id));
+    if (selectedFrame && !visibleFrameIds.has(selectedFrame)) this.callbacks.clearFrame?.();
+    this.visibleFrameIds = visibleFrameIds;
+    this.selectedFrame = visibleFrameIds.has(selectedFrame) ? selectedFrame : null;
+    const childCounts = new Map();
+    for (const node of book.nodes)
+      if (node.parentId) childCounts.set(node.parentId, (childCounts.get(node.parentId) ?? 0) + 1);
+    for (const frame of visibleFrames) {
       const box = el(
         'section',
-        `classification-frame${frame.id === selectedFrame ? ' is-selected' : ''}`,
+        `classification-frame${frame.id === this.selectedFrame ? ' is-selected' : ''}`,
       );
       box.dataset.frameId = frame.id;
       box.style.setProperty('--frame-color', frame.color);
@@ -132,7 +151,12 @@ export class BoardView {
       if (this.titleEdit?.frameId === frame.id && this.titleEdit.bookId === book.id) this.mountFrameTitle();
     }
     for (const { node, depth } of rows) {
-      const card = el('article', `thought-card${selectedIds.has(node.id) ? ' is-selected' : ''}`);
+      const childCount = childCounts.get(node.id) ?? 0;
+      const hasBranchToggle = childCount > 0 && typeof this.callbacks.branch === 'function';
+      const card = el(
+        'article',
+        `thought-card${selectedIds.has(node.id) ? ' is-selected' : ''}${hasBranchToggle ? ' has-branch-toggle' : ''}`,
+      );
       card.dataset.nodeId = node.id;
       const select = el('button', 'card-body');
       select.type = 'button';
@@ -144,9 +168,11 @@ export class BoardView {
       meta.append(el('span', 'card-state', this.callbacks.stateLabel(node.state)));
       select.append(meta);
       select.addEventListener('click', (event) => {
-        if (event.detail === 0) this.callbacks.select(node.id, event.shiftKey);
+        if (event.detail === 0 && this.callbacks.select(node.id, event.shiftKey))
+          this.revealIfOverview(node.id);
       });
       card.append(select);
+      if (hasBranchToggle) card.append(this.createBranchToggle(node, childCount));
       for (const side of SIDES) {
         const names = { right: '右', bottom: '下', left: '左', top: '上' };
         const port = el('button', `branch-port port-${side}`, '+');
@@ -172,6 +198,29 @@ export class BoardView {
         : this.frameElements.get(focusedFrame);
       (replacement?.querySelector(focusPart) ?? this.container).focus({ preventScroll: true });
     }
+  }
+  createBranchToggle(node, childCount) {
+    const isCollapsed = Boolean(this.callbacks.collapsed?.(node.id));
+    const label = isCollapsed
+      ? `続きをひらく：${node.text}（${childCount}件）`
+      : `枝をたたむ：${node.text}（${childCount}件）`;
+    const toggle = el('button', 'branch-toggle', isCollapsed ? `開く${childCount}` : '閉じる');
+    toggle.type = 'button';
+    toggle.dataset.branchToggle = 'true';
+    toggle.setAttribute('aria-label', label);
+    toggle.setAttribute('aria-expanded', String(!isCollapsed));
+    toggle.title = label;
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.lastTap = null;
+      this.callbacks.branch(node.id);
+      this.cardElements.get(node.id)?.querySelector('.branch-toggle')?.focus({ preventScroll: true });
+    });
+    return toggle;
+  }
+  revealIfOverview(id) {
+    if (this.view?.scale < 0.85) this.reveal(id);
   }
   addResizeCorners(element, item, frame) {
     if (this.callbacks.readOnly?.()) return;
@@ -328,6 +377,7 @@ export class BoardView {
     this.container.style.setProperty('--board-scale', this.view.scale);
     this.callbacks.zoom?.(this.view.scale);
     this.container.classList.toggle('is-overview', this.view.scale < 0.7);
+    this.container.classList.toggle('is-branch-overview', this.view.scale < 0.85);
   }
   fit() {
     if (!this.book) return;
@@ -336,10 +386,12 @@ export class BoardView {
       return;
     }
     this.fitPending = false;
-    const rect = boundsOf(
-      this.rows.map((row) => row.node),
-      this.book.frames,
-    );
+    this.viewportSize = {
+      width: this.container.clientWidth,
+      height: this.container.clientHeight,
+    };
+    const renderedFrames = (this.book.frames ?? []).filter((frame) => this.frameElements.has(frame.id));
+    const rect = boundsOf(this.rows.map((row) => row.node), renderedFrames);
     const scale = Math.max(
       0.25,
       Math.min(
@@ -398,7 +450,7 @@ export class BoardView {
   pointerDown(event) {
     if (
       (event.button !== 0 && event.button !== 1) ||
-      event.target.closest('textarea,input,.branch-port,.frame-edit,.edge-hit,.draft-actions')
+      event.target.closest('textarea,input,.branch-port,.branch-toggle,.frame-edit,.edge-hit,.draft-actions')
     )
       return;
     if (!this.callbacks.ready()) {
@@ -625,6 +677,7 @@ export class BoardView {
         this.callbacks.add(g.cardId, 'right');
       } else {
         const selected = this.callbacks.select(g.cardId, g.shiftKey);
+        if (selected) this.revealIfOverview(g.cardId);
         this.lastTap =
           selected === false || g.shiftKey
             ? null
