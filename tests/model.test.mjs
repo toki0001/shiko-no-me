@@ -52,7 +52,8 @@ test('representative sample is a valid connected tree with different decision st
   assert.equal(validateWorkspace(workspace), workspace);
   assert.equal(book.nodes.length, 7);
   assert.equal(subtree(book, book.rootId).length, 7);
-  assert.equal(book.nodes.filter((n) => n.state === 'adopted').length, 2);
+  assert.equal(book.nodes.find(node => node.text === 'どんな人と学びたい？').state, 'growing');
+  assert.equal(book.nodes.find(node => node.text === '週に一度、30分だけ集まる').state, 'adopted');
 });
 test('add a child, edit title/note and decision without changing its parent', () => {
   const { book } = fixture(),

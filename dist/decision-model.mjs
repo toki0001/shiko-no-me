@@ -27,7 +27,17 @@ const quote = (value) =>
     .map((line) => `> ${literal(line)}`)
     .join('\n');
 
-export function decisionSummary(book, nodeId = book.rootId) {
+function appendRelated(lines, book, nodeId, depth = 0) {
+  const indent = '  '.repeat(depth);
+  for (const node of children(book, nodeId)) {
+    lines.push(`${indent}- ${heading(node.text)}`);
+    if (node.note.trim())
+      lines.push(...quote(node.note).split('\n').map((line) => `${indent}  ${line}`));
+    appendRelated(lines, book, node.id, depth + 1);
+  }
+}
+
+export function decisionSummary(book, nodeId = book.rootId, { includeRelated = true } = {}) {
   const { question, candidates } = comparisonFor(book, nodeId);
   const lines = [`# 判断まとめ：${heading(question.text)}`, ''];
   if (question.note.trim()) lines.push('## 問いの背景', '', quote(question.note), '');
@@ -46,6 +56,11 @@ export function decisionSummary(book, nodeId = book.rootId) {
         node.note.trim() ? quote(node.note) : '理由はまだ書かれていません。',
         '',
       );
+      if (includeRelated) {
+        const before = lines.length;
+        appendRelated(lines, book, node.id);
+        if (lines.length > before) lines.push('');
+      }
     }
   }
   return lines.join('\n');

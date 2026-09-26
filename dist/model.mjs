@@ -300,7 +300,6 @@ export function sampleWorkspace() {
     'どんな人と学びたい？',
     '知識の量より、同じところで悩んでいることが大事かもしれない。',
   );
-  who.state = 'adopted';
   addNode(
     book,
     who.id,
